@@ -1,3 +1,15 @@
+test_output_corruption_refused (test_runner.EvidenceTests.test_output_corruption_refused) ... ok
+test_result_event_failure_keeps_pending_attempt (test_runner.EvidenceTests.test_result_event_failure_keeps_pending_attempt) ... ok
+test_three_results_survive_restart_and_original_edit (test_runner.EvidenceTests.test_three_results_survive_restart_and_original_edit) ... ok
+test_v1_migration_retains_session_and_events (test_runner.EvidenceTests.test_v1_migration_retains_session_and_events) ... ok
+test_closed_pipes_do_not_bypass_timeout (test_runner.RunnerTests.test_closed_pipes_do_not_bypass_timeout) ... ok
+test_credentials_not_inherited_and_no_interactive_stdin (test_runner.RunnerTests.test_credentials_not_inherited_and_no_interactive_stdin) ... ok
+test_descendant_holding_pipes_is_killed (test_runner.RunnerTests.test_descendant_holding_pipes_is_killed) ... ok
+test_invalid_limits (test_runner.RunnerTests.test_invalid_limits) ... ok
+test_output_limit_both_streams (test_runner.RunnerTests.test_output_limit_both_streams) ... ok
+test_spawn_failure_is_infrastructure_failure (test_runner.RunnerTests.test_spawn_failure_is_infrastructure_failure) ... ok
+test_success_and_program_failure (test_runner.RunnerTests.test_success_and_program_failure) ... ok
+test_timeout (test_runner.RunnerTests.test_timeout) ... ok
 test_changed_content_rejected (test_sessions.SessionTests.test_changed_content_rejected) ... ok
 test_event_failure_rolls_back_session_and_content (test_sessions.SessionTests.test_event_failure_rolls_back_session_and_content) ... ok
 test_events_append_only (test_sessions.SessionTests.test_events_append_only) ... ok
@@ -8,6 +20,6 @@ test_separate_process_resume_uses_pinned_content (test_sessions.SessionTests.tes
 test_source_references_resolve_in_manifest (test_sessions.SessionTests.test_source_references_resolve_in_manifest) ... ok
 
 ----------------------------------------------------------------------
-Ran 8 tests in 0.082s
+Ran 20 tests in 1.699s
 
 OK

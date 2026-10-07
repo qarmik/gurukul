@@ -1,0 +1,32 @@
+{
+  "synthetic_only": true,
+  "cases": [
+    {
+      "fixture": "success",
+      "status": "completed",
+      "exit_code": 0,
+      "source_sha256": "58a44735ffdfa6b14977516ad6e6e642d477999cd361537028f2d6b99e07ad68",
+      "stdout_sha256": "084c799cd551dd1d8d5c5f9a5d593b2e931f5e36122ee5c793c1d08a19839cc0",
+      "stderr_captured": false,
+      "separate_process_result_matches": true
+    },
+    {
+      "fixture": "failure",
+      "status": "program_error",
+      "exit_code": 1,
+      "source_sha256": "c9f723fd99325eb054cde47a15666082fcb7c78fb84c406a13ec11be9f3cb93a",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_captured": true,
+      "separate_process_result_matches": true
+    },
+    {
+      "fixture": "timeout",
+      "status": "timed_out",
+      "exit_code": -9,
+      "source_sha256": "6f03a883a34c8b19ec2dba2a1e2941488319b72a4d2f441aa474cff0744647c1",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_captured": false,
+      "separate_process_result_matches": true
+    }
+  ]
+}

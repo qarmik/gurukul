@@ -17,6 +17,7 @@ def canonical(value):
 
 class Store:
     def __init__(self, path):
+        self.state_dir = Path(path).resolve().parent
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.db = sqlite3.connect(path, timeout=10)
         self.db.row_factory = sqlite3.Row
@@ -50,6 +51,60 @@ class Store:
             CREATE TRIGGER IF NOT EXISTS events_no_delete BEFORE DELETE ON events
                 BEGIN SELECT RAISE(ABORT, 'events are append-only'); END;
         ''')
+        self._migrate_execution()
+
+    def _migrate_execution(self):
+        # Schema versions are an applied-migration ledger; v1 records are retained.
+        with self.db:
+            self.db.execute('BEGIN IMMEDIATE')
+            if self.db.execute('SELECT 1 FROM schema_version WHERE version=2').fetchone():
+                return
+            self.db.execute('''CREATE TABLE attempts(
+                id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id),
+                source_sha256 TEXT NOT NULL, submitted_at TEXT NOT NULL)''')
+            self.db.execute('''CREATE TABLE executions(
+                attempt_id TEXT PRIMARY KEY REFERENCES attempts(id),
+                result_json TEXT NOT NULL, finished_at TEXT NOT NULL)''')
+            for table in ('attempts', 'executions'):
+                for action in ('UPDATE', 'DELETE'):
+                    self.db.execute(f'''CREATE TRIGGER {table}_no_{action.lower()}
+                        BEFORE {action} ON {table}
+                        BEGIN SELECT RAISE(ABORT, 'evidence is append-only'); END''')
+            self.db.execute('INSERT INTO schema_version VALUES(2)')
+
+    def _execution_event(self, kind, attempt_id, session_id, timestamp, payload):
+        self.db.execute('''INSERT INTO events(event_id,event_type,schema_version,
+            occurred_at,recorded_at,source,subject_id,session_id,correlation_id,
+            causation_id,idempotency_key,privacy_class,payload_json)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            (str(uuid4()), kind, 1, timestamp, now(), 'gurukul.runner', attempt_id,
+             session_id, attempt_id, None, kind + ':' + attempt_id,
+             'personal_learning', canonical(payload)))
+
+    def record_submission(self, attempt_id, session_id, source_sha256, timestamp):
+        with self.db:
+            self.db.execute('INSERT INTO attempts VALUES(?,?,?,?)',
+                            (attempt_id, session_id, source_sha256, timestamp))
+            self._execution_event('execution.submitted', attempt_id, session_id,
+                                  timestamp, {'source_sha256': source_sha256})
+
+    def record_execution(self, attempt_id, result, timestamp):
+        attempt = self.attempt(attempt_id)
+        with self.db:
+            self.db.execute('INSERT INTO executions VALUES(?,?,?)',
+                            (attempt_id, canonical(result), timestamp))
+            self._execution_event('execution.finished', attempt_id, attempt['session_id'],
+                                  timestamp, result)
+
+    def attempt(self, attempt_id):
+        row = self.db.execute('SELECT * FROM attempts WHERE id=?', (attempt_id,)).fetchone()
+        if row is None:
+            raise ValueError('Unknown attempt ID.')
+        result = dict(row)
+        execution = self.db.execute('SELECT * FROM executions WHERE attempt_id=?', (attempt_id,)).fetchone()
+        result['execution'] = json.loads(execution['result_json']) if execution else None
+        result['status'] = result['execution']['status'] if execution else 'pending_or_interrupted'
+        return result
 
     def close(self):
         self.db.close()

@@ -3,3 +3,14 @@ __pycache__/
 .venv/
 var/
 .env
+.env.*
+!.env.example
+*.sqlite*
+*.db
+*.db-*
+telemetry/
+captures/
+camera/
+credentials/
+*.pem
+*.key
