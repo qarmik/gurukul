@@ -1,0 +1,25 @@
+{
+  "runtime": "NousResearch/hermes-agent",
+  "repository": "https://github.com/NousResearch/hermes-agent.git",
+  "revision": "cc75e8f4021f7efab99158f57601be4d691a6da9",
+  "pin_status": "source_inspected_not_live_validated",
+  "python_runtime_target": "3.14",
+  "entry_point": "run_agent.AIAgent",
+  "turn_method": "run_conversation",
+  "response_field": "final_response",
+  "required_constructor_settings": {
+    "enabled_toolsets": [],
+    "quiet_mode": true,
+    "skip_context_files": true,
+    "skip_memory": true,
+    "skip_background_review": true,
+    "save_trajectories": false,
+    "checkpoints_enabled": false
+  },
+  "provider": null,
+  "model": null,
+  "auth_method": null,
+  "live_integration_status": "awaiting_user_installation_and_account_details",
+  "tool_denial_status": "source_inspected_dynamic_verification_pending",
+  "ledger_isolation_status": "pending_worker_isolation_setup"
+}
