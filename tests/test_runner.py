@@ -123,7 +123,7 @@ class EvidenceTests(unittest.TestCase):
         self.store = Store(self.root / 'var/gurukul.sqlite3')
         self.assertEqual(before, self.store.resume())
         self.assertEqual(events, self.store.events())
-        self.assertEqual([1, 2], [r[0] for r in self.store.db.execute('SELECT version FROM schema_version ORDER BY version')])
+        self.assertEqual([1, 2, 3], [r[0] for r in self.store.db.execute('SELECT version FROM schema_version ORDER BY version')])
 
 
 if __name__ == '__main__':

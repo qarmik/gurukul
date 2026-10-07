@@ -1,4 +1,4 @@
-# Gurukul — GURU-002
+# Gurukul — GURU-003
 
 Local session persistence and bounded execution for C0-B01-D01. Python 3.11+; this increment uses only the standard library.
 
@@ -17,7 +17,7 @@ Run from the project root or pass `--root /absolute/path/to/gurukul` before the 
 
 Implemented: D01 package, version-pinned exercise storage, atomic session/event creation, append-only event guards, restart/resume and explicit Hermes-not-integrated status.
 
-Not implemented: automatic exercise checks, live Hermes teaching, hints, mastery decisions or retrieval transitions. No learner capability is claimed by these software tests. The initial teaching phase is persisted; do not mistake it for a completed lesson.
+Not implemented: live Hermes teaching, hints, mastery decisions or retrieval transitions. No learner capability is claimed by these software tests. The initial teaching phase is persisted; do not mistake it for a completed lesson.
 
 See docs/architecture-v0.1.md for the corrected design and docs/verification.txt for actual checks. The demonstration database is excluded from the deliverable; a fresh start creates your own session. Original curriculum and book files are not included.
 
@@ -39,6 +39,15 @@ PYTHONPATH=src python3 -m gurukul result ATTEMPT_UUID
 
 Replace ATTEMPT_UUID with the returned `id`. Optional run flags: `--timeout 5 --output-limit 65536`. The capture command returns JSON with status, exit code and retained stdout/stderr. Command exit 0 means capture succeeded, not that the submitted program passed. Read `status`: completed, program_error, timed_out, output_limited, interrupted or runner_error. A submission with no committed completion is pending_or_interrupted, never assumed successful and never automatically rerun.
 
-Only run your own beginner code. This is not a filesystem/network/memory sandbox. Run has no exercise correctness checks, tutoring or progression authority. It may be used while the session remains in the initial teaching phase; that phase is not updated by execution.
+Only run your own beginner code. This is not a filesystem/network/memory sandbox. Run itself has no exercise correctness checks, tutoring or progression authority; the separate check command evaluates saved D01 evidence. It may be used while the session remains in the initial teaching phase; that phase is not updated by execution.
 
 Source snapshots and raw output live under ignored `var/evidence/`; SQLite stores their hashes, metadata and append-only events. No learner evidence is automatically committed. See docs/GURU-002.md for limits, persistence behavior and acceptance proof.
+
+
+## Check a saved D01 answer (GURU-003)
+
+```bash
+PYTHONPATH=src python3 -m gurukul check REPAIRED_ATTEMPT_UUID --failed-attempt FAILED_ATTEMPT_UUID
+```
+
+Use the UUIDs returned when you saved each run. The checker evaluates requirements and output, not just process exit. Missing failure evidence is incomplete; unsupported syntax is sent to review. CHECKS_PASS is not mastery or verified independence. No learner solution is generated. See [GURU-003](docs/GURU-003.md) for supported syntax, evidence rules and the new Mac verification commands. GURU-002 Mac verification has already passed.

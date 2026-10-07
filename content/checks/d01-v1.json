@@ -1,0 +1,15 @@
+{
+  "checker_id": "C0-B01-D01",
+  "checker_version": "1",
+  "exercise_hashes": {
+    "1": "d05044dcf9b41f1dd642f3ea131883fcaeff9a04cb0660c6359183699c6fe651",
+    "2": "758e6091ea4c8093fe97d32b35e93383179289afded0b1e616f6806b1f30b19c"
+  },
+  "minimum_variables": 5,
+  "minimum_reassigned_and_reprinted": 2,
+  "required_initial_types": ["str", "number"],
+  "scope": "Straight-line assignments of string/numeric literals or names, signed numbers, and print with name/literal arguments and literal sep/end. Other syntax requires review.",
+  "failed_run": "Earlier same-session program_error caused by a bare undefined name on an assignment RHS; repaired snapshot differs only by quoting that name as text.",
+  "unverifiable": ["read the source", "closed the book", "started from blank", "error was deliberate", "repair was unassisted"],
+  "grants_mastery": false
+}

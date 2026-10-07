@@ -52,6 +52,40 @@ class Store:
                 BEGIN SELECT RAISE(ABORT, 'events are append-only'); END;
         ''')
         self._migrate_execution()
+        self._migrate_evaluations()
+
+    def _migrate_evaluations(self):
+        with self.db:
+            self.db.execute('BEGIN IMMEDIATE')
+            if self.db.execute('SELECT 1 FROM schema_version WHERE version=3').fetchone():
+                return
+            self.db.execute('''CREATE TABLE evaluations(
+                id TEXT PRIMARY KEY, attempt_id TEXT NOT NULL REFERENCES attempts(id),
+                result_json TEXT NOT NULL, evaluated_at TEXT NOT NULL)''')
+            for action in ('UPDATE', 'DELETE'):
+                self.db.execute(f'''CREATE TRIGGER evaluations_no_{action.lower()}
+                    BEFORE {action} ON evaluations
+                    BEGIN SELECT RAISE(ABORT, 'evaluations are append-only'); END''')
+            self.db.execute('INSERT INTO schema_version VALUES(3)')
+
+    def record_evaluation(self, evaluation_id, attempt, result, timestamp):
+        with self.db:
+            self.db.execute('BEGIN IMMEDIATE')
+            existing = self.db.execute('SELECT result_json FROM evaluations WHERE id=?',
+                                       (evaluation_id,)).fetchone()
+            if existing:
+                return json.loads(existing['result_json'])
+            self.db.execute('INSERT INTO evaluations VALUES(?,?,?,?)',
+                            (evaluation_id, attempt['id'], canonical(result), timestamp))
+            self.db.execute('''INSERT INTO events(event_id,event_type,schema_version,
+                occurred_at,recorded_at,source,subject_id,session_id,correlation_id,
+                causation_id,idempotency_key,privacy_class,payload_json)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+                (str(uuid4()), 'assessment.checked', 1, timestamp, now(),
+                 'gurukul.checker', evaluation_id, attempt['session_id'], attempt['id'],
+                 None, 'assessment.checked:' + evaluation_id, 'personal_learning',
+                 canonical(result)))
+        return result
 
     def _migrate_execution(self):
         # Schema versions are an applied-migration ledger; v1 records are retained.

@@ -1,3 +1,27 @@
+test_cli_check_uses_saved_evidence_in_separate_process (test_checks.D01Checks.test_cli_check_uses_saved_evidence_in_separate_process) ... ok
+test_corrupt_source_or_exercise_refused (test_checks.D01Checks.test_corrupt_source_or_exercise_refused) ... ok
+test_evaluation_and_event_rollback_together (test_checks.D01Checks.test_evaluation_and_event_rollback_together) ... ok
+test_evaluations_cannot_be_updated_or_deleted (test_checks.D01Checks.test_evaluations_cannot_be_updated_or_deleted) ... ok
+test_failed_program_not_passed (test_checks.D01Checks.test_failed_program_not_passed) ... ok
+test_failure_after_repair_rejected (test_checks.D01Checks.test_failure_after_repair_rejected) ... ok
+test_failure_from_another_session_rejected (test_checks.D01Checks.test_failure_from_another_session_rejected) ... ok
+test_full_pair_passes_without_mastery (test_checks.D01Checks.test_full_pair_passes_without_mastery) ... ok
+test_hardcoded_output_does_not_count_as_variable_print (test_checks.D01Checks.test_hardcoded_output_does_not_count_as_variable_print) ... ok
+test_labels_and_literal_print_formatting_are_supported (test_checks.D01Checks.test_labels_and_literal_print_formatting_are_supported) ... ok
+test_migration_retains_prior_execution_evidence (test_checks.D01Checks.test_migration_retains_prior_execution_evidence) ... ok
+test_missing_failed_run_is_incomplete (test_checks.D01Checks.test_missing_failed_run_is_incomplete) ... ok
+test_no_reassignment_or_same_value_fails (test_checks.D01Checks.test_no_reassignment_or_same_value_fails) ... ok
+test_only_numeric_initial_values_fail (test_checks.D01Checks.test_only_numeric_initial_values_fail) ... ok
+test_reassignment_not_printed_and_change_reverted_fail (test_checks.D01Checks.test_reassignment_not_printed_and_change_reverted_fail) ... ok
+test_repeated_check_and_restart_are_idempotent (test_checks.D01Checks.test_repeated_check_and_restart_are_idempotent) ... ok
+test_saved_output_must_match_independent_prediction (test_checks.D01Checks.test_saved_output_must_match_independent_prediction) ... ok
+test_spec_change_creates_separate_versioned_evaluation (test_checks.D01Checks.test_spec_change_creates_separate_versioned_evaluation) ... ok
+test_successful_execution_alone_fails_requirements (test_checks.D01Checks.test_successful_execution_alone_fails_requirements) ... ok
+test_timeout_and_output_limit_are_blocked (test_checks.D01Checks.test_timeout_and_output_limit_are_blocked) ... ok
+test_unknown_exercise_hash_needs_review (test_checks.D01Checks.test_unknown_exercise_hash_needs_review) ... ok
+test_unsupported_valid_python_needs_review (test_checks.D01Checks.test_unsupported_valid_python_needs_review) ... ok
+test_unused_text_cannot_satisfy_printed_value_mix (test_checks.D01Checks.test_unused_text_cannot_satisfy_printed_value_mix) ... ok
+test_wrong_error_and_unrelated_repair_fail (test_checks.D01Checks.test_wrong_error_and_unrelated_repair_fail) ... ok
 test_output_corruption_refused (test_runner.EvidenceTests.test_output_corruption_refused) ... ok
 test_result_event_failure_keeps_pending_attempt (test_runner.EvidenceTests.test_result_event_failure_keeps_pending_attempt) ... ok
 test_three_results_survive_restart_and_original_edit (test_runner.EvidenceTests.test_three_results_survive_restart_and_original_edit) ... ok
@@ -16,10 +40,4 @@ test_events_append_only (test_sessions.SessionTests.test_events_append_only) ...
 test_restart_and_idempotent_start (test_sessions.SessionTests.test_restart_and_idempotent_start) ... ok
 test_resume_rejects_corrupted_exercise (test_sessions.SessionTests.test_resume_rejects_corrupted_exercise) ... ok
 test_resume_without_session (test_sessions.SessionTests.test_resume_without_session) ... ok
-test_separate_process_resume_uses_pinned_content (test_sessions.SessionTests.test_separate_process_resume_uses_pinned_content) ... ok
-test_source_references_resolve_in_manifest (test_sessions.SessionTests.test_source_references_resolve_in_manifest) ... ok
-
-----------------------------------------------------------------------
-Ran 20 tests in 1.699s
-
-OK
+test_separate_process_resume_uses_pinned_content (test_sessions.SessionTests.test_separate_process_resume_uses_pinned_content) ... 
