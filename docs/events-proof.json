@@ -1,0 +1,22 @@
+[
+  {
+    "sequence": 1,
+    "event_id": "3266c7aa-07a3-4a07-a537-804014ceddf6",
+    "event_type": "session.started",
+    "schema_version": 1,
+    "occurred_at": "2026-10-07T21:18:47.300146+00:00",
+    "recorded_at": "2026-10-07T21:18:47.300146+00:00",
+    "source": "gurukul.runtime",
+    "subject_id": "C0-B01-D01",
+    "session_id": "70bd8244-184b-4fdb-8a21-c5345922063b",
+    "correlation_id": "70bd8244-184b-4fdb-8a21-c5345922063b",
+    "causation_id": null,
+    "idempotency_key": "session.started:70bd8244-184b-4fdb-8a21-c5345922063b",
+    "privacy_class": "personal_learning",
+    "payload": {
+      "content_sha256": "758e6091ea4c8093fe97d32b35e93383179289afded0b1e616f6806b1f30b19c",
+      "exercise_version": 2,
+      "phase": "teaching"
+    }
+  }
+]

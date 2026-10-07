@@ -1,0 +1,61 @@
+{
+  "id": "C0-B01-D01",
+  "version": 2,
+  "title": "Literal or variable?",
+  "capabilities": [
+    "python.values",
+    "python.names",
+    "python.reassignment"
+  ],
+  "source": {
+    "manifest": "content/sources.json",
+    "manifest_version": 1,
+    "references": [
+      {
+        "source_id": "gurukul.c0-b01.values-and-variables.v0.6",
+        "section": "C0-B01-D01"
+      },
+      {
+        "source_id": "matthes.python-crash-course.ed3",
+        "printed_pages": [
+          16,
+          19
+        ]
+      }
+    ],
+    "note": "Approved local sources only; bind source IDs to local files outside Git. No external browsing."
+  },
+  "instructions": [
+    "Read the approved pages, then close the book.",
+    "From a blank values_variables.py, create five variables containing text and numeric values.",
+    "Print each value.",
+    "Reassign two variables and print them again.",
+    "Deliberately use one unquoted text value, run it, and preserve the error.",
+    "Repair it without assistance."
+  ],
+  "required_evidence": [
+    "source file",
+    "failed run",
+    "successful run"
+  ],
+  "teaching_objectives": [
+    "Distinguish a literal value from a variable name.",
+    "Explain why quotes create text and an unquoted identifier requests a name lookup.",
+    "Predict the effect of reassignment on subsequent output."
+  ],
+  "tutor_contract": {
+    "runtime": "NousResearch/hermes-agent",
+    "actions": [
+      "teach",
+      "diagnose",
+      "reteach",
+      "hint",
+      "remediate"
+    ],
+    "source_policy": "approved_local_only",
+    "teaching_examples": "Separate miniature examples, never the active exercise solution or cumulative line-by-line completion.",
+    "diagnosis": "Ask a prediction or explanation question, record the response, and target the smallest demonstrated misconception.",
+    "assessment_rule": "No tutoring during an open reconstruction attempt. Close a failed attempt before remediation; schedule a later fresh variant.",
+    "disclosure_rule": "No solution before an attempt. Explicit disclosure after an attempt retires that assessment variant, records exposure, and cannot earn independent credit."
+  }
+}

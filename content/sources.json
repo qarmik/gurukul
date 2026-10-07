@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "sources": {
+    "gurukul.c0-b01.values-and-variables.v0.6": {
+      "title": "C0-B01 — Values and Variables",
+      "media_type": "text/html",
+      "sha256": "6d301250bb4d6177f818133baaed8ebd2cd00f114aa8453f375d93e849e38f17",
+      "access": "approved_local_only",
+      "redistribute": false
+    },
+    "matthes.python-crash-course.ed3": {
+      "title": "Python Crash Course, 3rd Edition",
+      "media_type": "application/pdf",
+      "sha256": "0faf0cb9905ed7402c898f9d9972c25667db240920c08610d03fe77a9996b347",
+      "access": "approved_local_only",
+      "redistribute": false
+    }
+  }
+}

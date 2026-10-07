@@ -1,0 +1,13 @@
+test_changed_content_rejected (test_sessions.SessionTests.test_changed_content_rejected) ... ok
+test_event_failure_rolls_back_session_and_content (test_sessions.SessionTests.test_event_failure_rolls_back_session_and_content) ... ok
+test_events_append_only (test_sessions.SessionTests.test_events_append_only) ... ok
+test_restart_and_idempotent_start (test_sessions.SessionTests.test_restart_and_idempotent_start) ... ok
+test_resume_rejects_corrupted_exercise (test_sessions.SessionTests.test_resume_rejects_corrupted_exercise) ... ok
+test_resume_without_session (test_sessions.SessionTests.test_resume_without_session) ... ok
+test_separate_process_resume_uses_pinned_content (test_sessions.SessionTests.test_separate_process_resume_uses_pinned_content) ... ok
+test_source_references_resolve_in_manifest (test_sessions.SessionTests.test_source_references_resolve_in_manifest) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.082s
+
+OK

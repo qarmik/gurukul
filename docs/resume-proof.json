@@ -1,0 +1,73 @@
+{
+  "session": {
+    "id": "70bd8244-184b-4fdb-8a21-c5345922063b",
+    "exercise_id": "C0-B01-D01",
+    "exercise_version": 2,
+    "phase": "teaching",
+    "status": "active",
+    "created_at": "2026-10-07T21:18:47.300146+00:00"
+  },
+  "exercise": {
+    "capabilities": [
+      "python.values",
+      "python.names",
+      "python.reassignment"
+    ],
+    "id": "C0-B01-D01",
+    "instructions": [
+      "Read the approved pages, then close the book.",
+      "From a blank values_variables.py, create five variables containing text and numeric values.",
+      "Print each value.",
+      "Reassign two variables and print them again.",
+      "Deliberately use one unquoted text value, run it, and preserve the error.",
+      "Repair it without assistance."
+    ],
+    "required_evidence": [
+      "source file",
+      "failed run",
+      "successful run"
+    ],
+    "source": {
+      "manifest": "content/sources.json",
+      "manifest_version": 1,
+      "note": "Approved local sources only; bind source IDs to local files outside Git. No external browsing.",
+      "references": [
+        {
+          "section": "C0-B01-D01",
+          "source_id": "gurukul.c0-b01.values-and-variables.v0.6"
+        },
+        {
+          "printed_pages": [
+            16,
+            19
+          ],
+          "source_id": "matthes.python-crash-course.ed3"
+        }
+      ]
+    },
+    "teaching_objectives": [
+      "Distinguish a literal value from a variable name.",
+      "Explain why quotes create text and an unquoted identifier requests a name lookup.",
+      "Predict the effect of reassignment on subsequent output."
+    ],
+    "title": "Literal or variable?",
+    "tutor_contract": {
+      "actions": [
+        "teach",
+        "diagnose",
+        "reteach",
+        "hint",
+        "remediate"
+      ],
+      "assessment_rule": "No tutoring during an open reconstruction attempt. Close a failed attempt before remediation; schedule a later fresh variant.",
+      "diagnosis": "Ask a prediction or explanation question, record the response, and target the smallest demonstrated misconception.",
+      "disclosure_rule": "No solution before an attempt. Explicit disclosure after an attempt retires that assessment variant, records exposure, and cannot earn independent credit.",
+      "runtime": "NousResearch/hermes-agent",
+      "source_policy": "approved_local_only",
+      "teaching_examples": "Separate miniature examples, never the active exercise solution or cumulative line-by-line completion."
+    },
+    "version": 2
+  },
+  "hermes_status": "not_integrated",
+  "next_action": "Read approved local material. Live Hermes teaching is scheduled for GURU-004."
+}

@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gurukul-runtime"
+version = "0.1.0"
+requires-python = ">=3.11"
+description = "Local evidence-backed apprenticeship runtime"
+
+[project.scripts]
+gurukul = "gurukul.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
