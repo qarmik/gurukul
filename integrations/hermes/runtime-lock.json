@@ -19,7 +19,7 @@
   "provider": "openai_direct",
   "model": "gpt-6-luna",
   "auth_method": "dedicated_api_key",
-  "live_integration_status": "awaiting_dedicated_key_setup_confirmation_and_live_worker",
+  "live_integration_status": "live_worker_implemented_mac_acceptance_pending",
   "tool_denial_status": "mac_empty_selection_verified_instantiated_agent_and_live_turn_pending",
   "ledger_isolation_status": "mac_import_worker_denial_verified_live_worker_pending",
   "model_policy": "config/model-policy.json",
@@ -37,5 +37,7 @@
     "sentinel_unchanged": true,
     "agent_instantiated": false,
     "live_turn": false
-  }
+  },
+  "live_test_command": "python3 scripts/hermes_live_teach.py --choose-source",
+  "live_test_documentation": "docs/GURU-004-live.md"
 }

@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "provider": "openai_direct",
+  "model": "gpt-6-luna",
+  "max_output_tokens": 1024,
+  "source_id": "gurukul.c0-b01.values-and-variables.v0.6",
+  "source_section": "C0-B01-D01",
+  "source_sha256": "6d301250bb4d6177f818133baaed8ebd2cd00f114aa8453f375d93e849e38f17",
+  "automatic_escalation": false,
+  "automatic_retry": false
+}

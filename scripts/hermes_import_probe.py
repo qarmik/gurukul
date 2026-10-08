@@ -81,19 +81,9 @@ def worker(source, sentinel):
     return 0 if report['status'] == 'PASS' else 1
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--runtime-root', type=Path, default=Path.home() / 'GurukulRuntime')
-    parser.add_argument('--worker', nargs=2, metavar=('SOURCE', 'SENTINEL'))
-    args = parser.parse_args()
-    if args.worker:
-        return worker(*args.worker)
-    if sys.platform != 'darwin':
-        parser.error('This probe must run on the Mac; no Linux substitute.')
-    project = Path(__file__).resolve().parents[1]
-    state = project / 'var'
-    runtime = args.runtime_root.resolve()
-    source = runtime / 'hermes-agent'
+def installed_runtime(runtime):
+    """Read and validate the prepared dedicated install without provisioning."""
+    source = runtime / "hermes-agent"
     revision = subprocess.check_output(['git', '-C', str(source), 'rev-parse', 'HEAD'], text=True).strip()
     dirty = subprocess.check_output(['git', '-C', str(source), 'status', '--porcelain'], text=True).strip()
     if revision != PIN or dirty:
@@ -119,6 +109,23 @@ python -c 'import json,os,sys; from pathlib import Path; from pm.environments im
     pythonpaths = [Path(p).resolve() for p in selected['pythonpath'].split(os.pathsep) if p]
     if not python.is_relative_to(runtime) or not pythonpaths or any(not p.is_relative_to(runtime) for p in pythonpaths):
         raise SystemExit('STOP: selected interpreter/dependency paths escape the dedicated runtime.')
+    return python, venv, base_python, pythonpaths
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--runtime-root', type=Path, default=Path.home() / 'GurukulRuntime')
+    parser.add_argument('--worker', nargs=2, metavar=('SOURCE', 'SENTINEL'))
+    args = parser.parse_args()
+    if args.worker:
+        return worker(*args.worker)
+    if sys.platform != 'darwin':
+        parser.error('This probe must run on the Mac; no Linux substitute.')
+    project = Path(__file__).resolve().parents[1]
+    state = project / 'var'
+    runtime = args.runtime_root.resolve()
+    source = runtime / 'hermes-agent'
+    python, venv, base_python, pythonpaths = installed_runtime(runtime)
     state.mkdir(exist_ok=True)
     reports = state / 'hermes-probes'
     reports.mkdir(exist_ok=True)

@@ -1,0 +1,91 @@
+"""Gurukul-owned source admission, disclosure checks and evidence persistence."""
+import hashlib
+from html.parser import HTMLParser
+import json
+from pathlib import Path
+import re
+from uuid import uuid4
+
+from gurukul.store import canonical, now
+
+SYSTEM_PROMPT = '''You are the Guru teaching a beginner from approved local D01 material.
+This is a teaching turn, not an assessment attempt. Use only the supplied material.
+Explain literal values, variable names, quoted text and reassignment simply.
+Do not browse, call tools, change model, write files, or claim assessment authority.
+Do not provide Python code, assignments, an exercise solution, a repaired answer,
+or a line-by-line construction plan. Do not infer an unobserved misconception.
+Return only a JSON object with exactly two string fields: explanation and
+diagnostic_question. Keep explanation under 180 words. Ask one short conceptual
+prediction/explanation question, without giving its answer. No code fences.
+If material is insufficient, say so in the explanation instead of inventing sources.
+Gurukul owns learner continuity and escalation. This turn grants no mastery.'''
+
+
+class PlainText(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.parts = []
+
+    def handle_data(self, data):
+        self.parts.append(data)
+
+
+def source_input(path, manifest, config, exercise):
+    entry = manifest['sources'][config['source_id']]
+    raw = Path(path).read_bytes()
+    digest = hashlib.sha256(raw).hexdigest()
+    if digest != entry['sha256'] or digest != config['source_sha256']:
+        raise ValueError('Approved D01 source SHA-256 mismatch')
+    if entry['access'] != 'approved_local_only' or config['source_section'] != exercise['id']:
+        raise ValueError('Source policy/section mismatch')
+    if not any(r['source_id'] == config['source_id'] for r in exercise['source']['references']):
+        raise ValueError('Exercise does not approve this source')
+    html = raw.decode('utf-8')
+    concepts = re.search(r'<h2>Concepts to own</h2>\s*<div class="card">(.*?)</div>', html, re.S)
+    day = re.search(r'<section class="day">(?:(?!</section>).)*?C0-B01-D01.*?</section>', html, re.S)
+    if not concepts or not day:
+        raise ValueError('Approved source sections missing')
+    parser = PlainText()
+    parser.feed(concepts.group(1) + '\n' + day.group())
+    excerpt = ' '.join(' '.join(parser.parts).split())
+    provenance = {'source_id': config['source_id'], 'source_sha256': digest,
+                  'sections': ['Concepts to own', config['source_section']],
+                  'excerpt_sha256': hashlib.sha256(excerpt.encode()).hexdigest(),
+                  'manifest_sha256': hashlib.sha256(canonical(manifest).encode()).hexdigest(),
+                  'exercise_sha256': hashlib.sha256(canonical(exercise).encode()).hexdigest()}
+    prompt = ('Teach only C0-B01-D01: literal versus variable, quoted text, and reassignment. '
+              'Other topics mentioned in the local material are out of scope. '
+              'I have not supplied an answer yet; ask a diagnostic question. '
+              'Return the requested JSON, with no exercise solution.\n\n'
+              'APPROVED LOCAL MATERIAL (' + config['source_id'] + '):\n' + excerpt)
+    return prompt, excerpt, provenance
+
+
+def teaching_response(text):
+    result = json.loads(text)
+    if not isinstance(result, dict) or set(result) != {'explanation', 'diagnostic_question'}:
+        raise ValueError('Teaching response schema mismatch')
+    for value in result.values():
+        if not isinstance(value, str) or not value.strip() or len(value) > 2500:
+            raise ValueError('Teaching text missing/too long')
+        if ('```' in value or re.search(r'\bprint\s*\(', value) or
+                re.search(r'\b[A-Za-z_]\w*\s*=(?!=)', value)):
+            raise ValueError('Code disclosure refused for this integration turn')
+    return result
+
+
+def record_result(store, call_id, session_id, result):
+    """Parent-only append, preserving the generic ledger; no mastery/phase changes."""
+    with store.db:
+        store.db.execute('BEGIN IMMEDIATE')
+        session = store.db.execute('SELECT phase,status FROM sessions WHERE id=?', (session_id,)).fetchone()
+        if not session or session['status'] != 'active' or session['phase'] not in ('teaching', 'remediation'):
+            raise ValueError('Tutoring is not admitted in this session phase')
+        timestamp = now()
+        store.db.execute('''INSERT INTO events(event_id,event_type,schema_version,
+            occurred_at,recorded_at,source,subject_id,session_id,correlation_id,
+            causation_id,idempotency_key,privacy_class,payload_json)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            (str(uuid4()), 'teaching.integration_finished', 1, timestamp, timestamp,
+             'gurukul.hermes_adapter', call_id, session_id, call_id, None,
+             'teaching.integration_finished:' + call_id, 'personal_learning', canonical(result)))
