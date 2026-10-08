@@ -1,0 +1,46 @@
+{
+  "policy_version": 1,
+  "status": "architecture_locked_not_yet_enforced",
+  "routing_authority": "gurukul",
+  "base": {
+    "display_name": "GPT-6 Luna",
+    "provider": "openai_direct",
+    "requested_model_id": "gpt-6-luna",
+    "verified_model_id": null,
+    "auth_method": "dedicated_api_key"
+  },
+  "escalation": {
+    "display_name": "Claude Sonnet 5.5",
+    "provider": null,
+    "verified_model_id": null,
+    "auth_method": null,
+    "configured": false
+  },
+  "hermes_may_request_escalation": true,
+  "hermes_may_invoke_escalation": false,
+  "automatic_provider_fallback": false,
+  "reason_codes": {
+    "difficult_pedagogical_reasoning": "Base response cannot resolve a specific evidenced teaching or diagnosis difficulty.",
+    "ambiguous_pedagogical_reasoning": "Competing interpretations remain after the base response; cite the ambiguity and relevant evidence.",
+    "qualitative_gate_assessment": "A qualitative gate judgment requires additional reasoning; deterministic checks remain authoritative.",
+    "repeated_misconception": "Linked attempts or retrievals document recurrence of the same misconception."
+  },
+  "unknown_reason_action": "deny_until_explicitly_defined_in_versioned_policy",
+  "missing_route_or_budget_action": "record_blocked_do_not_substitute",
+  "required_decision_fields": [
+    "request_id", "session_id", "attempt_id", "policy_version", "requested_by",
+    "reason_code", "reason_detail", "evidence_refs", "base_call_id",
+    "decision", "decision_reason", "authorized_by", "grant_id", "decided_at"
+  ],
+  "required_call_fields": [
+    "call_id", "request_id", "grant_id", "provider", "requested_model",
+    "resolved_model", "provider_request_id", "started_at", "finished_at",
+    "input_tokens", "output_tokens", "cached_input_tokens", "reasoning_tokens",
+    "usage_source", "estimated_cost", "actual_cost", "currency",
+    "pricing_source", "pricing_version", "cost_status", "outcome",
+    "response_ref", "downstream_evaluation_ref"
+  ],
+  "unknown_usage_or_cost": "null_with_status_never_invent_zero",
+  "record_location": "ignored_local_runtime_state",
+  "grants_mastery": false
+}

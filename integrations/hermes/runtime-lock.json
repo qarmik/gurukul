@@ -16,10 +16,11 @@
     "save_trajectories": false,
     "checkpoints_enabled": false
   },
-  "provider": null,
-  "model": null,
-  "auth_method": null,
-  "live_integration_status": "awaiting_user_installation_and_account_details",
+  "provider": "openai_direct",
+  "model": "gpt-6-luna",
+  "auth_method": "dedicated_api_key",
+  "live_integration_status": "awaiting_mac_preflight_and_local_key_setup",
   "tool_denial_status": "source_inspected_dynamic_verification_pending",
-  "ledger_isolation_status": "pending_worker_isolation_setup"
+  "ledger_isolation_status": "pending_worker_isolation_setup",
+  "model_policy": "config/model-policy.json"
 }
