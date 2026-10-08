@@ -16,6 +16,18 @@ PIN = 'cc75e8f4021f7efab99158f57601be4d691a6da9'
 MARKER = 'GURUKUL_PROBE_JSON='
 
 
+def selected_interpreter(selected, runtime):
+    """Validate resolved targets, but preserve the venv launcher symlink."""
+    runtime = runtime.resolve()
+    venv = Path(selected['venv']).resolve()
+    python = venv / 'bin' / 'python'
+    base = python.resolve()
+    if (not venv.is_relative_to(runtime) or not base.is_relative_to(runtime)
+            or not (venv / 'pyvenv.cfg').is_file() or not python.is_file()):
+        raise ValueError('Selected dependency venv or interpreter escapes/is missing from dedicated runtime')
+    return python, venv, base
+
+
 def denied(operation):
     try:
         operation()
@@ -40,6 +52,10 @@ def worker(source, sentinel):
         print(MARKER + json.dumps(report))
         return 1
     try:
+        if sys.prefix == sys.base_prefix:
+            raise RuntimeError('Worker did not boot inside the selected dependency venv')
+        report.update(interpreter=sys.executable, venv_prefix=sys.prefix,
+                      base_prefix=sys.base_prefix)
         import run_agent
         from model_tools import get_tool_definitions
         imported = Path(run_agent.__file__).resolve()
@@ -59,7 +75,7 @@ def worker(source, sentinel):
         report.update(imported_from=str(imported), python=sys.version.split()[0],
                       constructor_verified=True, run_conversation_interface_verified=True,
                       empty_selection_tool_count=len(tools), status='PASS')
-    except Exception as exc:
+    except (Exception, SystemExit) as exc:
         report.update(status='BLOCKED', error_type=type(exc).__name__, error=str(exc))
     print(MARKER + json.dumps(report))
     return 0 if report['status'] == 'PASS' else 1
@@ -90,7 +106,7 @@ def main():
 . "$1/scripts/_activation.sh"
 composed="$(hermes_compose_env "$1" sh)"
 hermes_apply_env "$composed"
-python -c 'import json,os,sys; print("GURUKUL_ENV="+json.dumps({"python":sys.executable,"pythonpath":os.environ.get("PYTHONPATH", "")}))'
+python -c 'import json,os,sys; from pathlib import Path; from pm.environments import committed_venv; venv=committed_venv(Path(sys.argv[1])); assert venv is not None, "No committed dependency venv"; print("GURUKUL_ENV="+json.dumps({"venv":str(venv),"pythonpath":os.environ.get("PYTHONPATH", "")}))' "$1"
 '''
     result = subprocess.run(['/bin/bash', '--noprofile', '--norc', '-c', compose, 'probe', str(source)],
                             cwd=source, env=clean_env, capture_output=True, text=True, timeout=60)
@@ -99,7 +115,7 @@ python -c 'import json,os,sys; print("GURUKUL_ENV="+json.dumps({"python":sys.exe
         print(result.stderr[-6000:])
         raise SystemExit('STOP: installed PM environment could not be composed; no install attempted.')
     selected = json.loads(lines[0].split('=', 1)[1])
-    python = Path(selected['python']).resolve()
+    python, venv, base_python = selected_interpreter(selected, runtime)
     pythonpaths = [Path(p).resolve() for p in selected['pythonpath'].split(os.pathsep) if p]
     if not python.is_relative_to(runtime) or not pythonpaths or any(not p.is_relative_to(runtime) for p in pythonpaths):
         raise SystemExit('STOP: selected interpreter/dependency paths escape the dedicated runtime.')
@@ -125,10 +141,11 @@ python -c 'import json,os,sys; print("GURUKUL_ENV="+json.dumps({"python":sys.exe
         profile = ['(version 1)', '(allow default)', '(deny network*)',
                    '(deny process-fork)', '(deny process-exec)',
                    '(allow process-exec (literal ' + q(python) + '))',
+                   '(allow process-exec (literal ' + q(base_python) + '))',
                    '(deny file-write*)', '(allow file-write* (subpath ' + q(work) + '))',
                    '(allow file-write* (literal "/dev/null"))',
                    '(deny file-read* (subpath ' + q(Path.home().resolve()) + '))']
-        for allowed in set(pythonpaths + [python.parent.parent, source, work]):
+        for allowed in set(pythonpaths + [venv, base_python.parent.parent, source, work]):
             profile.append('(allow file-read* (subpath ' + q(allowed) + '))')
         profile.append('(deny file-read* file-write* (subpath ' + q(state.resolve()) + '))')
         child_env = {'HOME': str(Path.home()), 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin',
