@@ -2,7 +2,7 @@
   "runtime": "NousResearch/hermes-agent",
   "repository": "https://github.com/NousResearch/hermes-agent.git",
   "revision": "cc75e8f4021f7efab99158f57601be4d691a6da9",
-  "pin_status": "source_inspected_not_live_validated",
+  "pin_status": "mac_import_verified_live_turn_pending",
   "python_runtime_target": "3.14",
   "entry_point": "run_agent.AIAgent",
   "turn_method": "run_conversation",
@@ -19,8 +19,23 @@
   "provider": "openai_direct",
   "model": "gpt-6-luna",
   "auth_method": "dedicated_api_key",
-  "live_integration_status": "awaiting_mac_preflight_and_local_key_setup",
-  "tool_denial_status": "source_inspected_dynamic_verification_pending",
-  "ledger_isolation_status": "pending_worker_isolation_setup",
-  "model_policy": "config/model-policy.json"
+  "live_integration_status": "awaiting_dedicated_key_setup_confirmation_and_live_worker",
+  "tool_denial_status": "mac_empty_selection_verified_instantiated_agent_and_live_turn_pending",
+  "ledger_isolation_status": "mac_import_worker_denial_verified_live_worker_pending",
+  "model_policy": "config/model-policy.json",
+  "import_verification": {
+    "gurukul_revision": "be913af20acd9c8ec2eb458483aa9e8abbfcaf43",
+    "evidence_origin": "user_supplied_mac_terminal_output",
+    "status": "PASS",
+    "python_version": "3.14.7",
+    "constructor_interface_verified": true,
+    "run_conversation_interface_verified": true,
+    "empty_selection_tool_count": 0,
+    "ledger_read_write_create": "DENIED",
+    "shell": "DENIED",
+    "network": "DENIED",
+    "sentinel_unchanged": true,
+    "agent_instantiated": false,
+    "live_turn": false
+  }
 }

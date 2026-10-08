@@ -1,5 +1,13 @@
 # GURU-004A preflight — partial, not live acceptance
 
+Current status (2026-10-08): dedicated Mac setup and isolated import PASS at Gurukul
+be913af. See GURU-004-import-probe.md and runtime-lock.json for the reported evidence.
+OpenAI direct / gpt-6-luna / dedicated API key are selected; key readiness remains
+unconfirmed. The historical preflight below records the original questions, not
+outstanding installation requests. No live teaching turn has run. The supplied D01
+HTML and book PDF match the approved manifest hashes; Mac file bindings remain to
+be supplied or staged outside Git.
+
 GURU-003 Mac acceptance is complete: b6f94e0, 24 new tests passed. Do not repeat that verification.
 
 ## Runtime identified and pinned
