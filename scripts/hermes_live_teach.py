@@ -25,7 +25,7 @@ MARKER = 'GURUKUL_LIVE_JSON='
 def sandbox_profile(work, source, python, venv, base, paths, state, port, actual_home):
     q = lambda value: json.dumps(str(value))
     rules = ['(version 1)', '(allow default)', '(deny network*)',
-             '(allow network-outbound (remote ip "127.0.0.1:' + str(port) + '"))',
+             '(allow network-outbound (remote ip "localhost:' + str(port) + '"))',
              '(deny process-fork)', '(deny process-exec)',
              '(allow process-exec (literal ' + q(python) + '))',
              '(allow process-exec (literal ' + q(base) + '))',

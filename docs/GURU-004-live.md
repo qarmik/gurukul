@@ -1,6 +1,13 @@
 # GURU-004A/B — one real isolated teaching turn
 
 Status: implementation and 13 new development tests PASS; Mac live acceptance PENDING.
+The first Mac live attempt stopped at sandbox profile compilation: its SBPL parser
+requires `localhost` (or a wildcard) as the network host, and rejected the numeric
+loopback address. The rule now uses `localhost:<relay-port>`; there is no wildcard
+host or port. The relay still binds/connects via 127.0.0.1. A new Mac-only test
+compiles the actual profile and verifies relay reachability, denial of a second
+listening port, and ledger read/write denial. It makes no provider call. Linux
+skips this test and cannot provide acceptance evidence for the corrected rule.
 The earlier isolated import probe passed on the Mac at be913af. The user confirmed
 dedicated OpenAI credential storage outside Git. Account/model access remains unverified
 until the live inference request succeeds. No recorded live teaching response exists yet.
@@ -14,6 +21,7 @@ cd /Users/qarmik/Documents/GitHub/gurukul
 git pull --ff-only
 git rev-parse --short HEAD
 PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_hermes_live.py' -v
+PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_hermes_sandbox.py' -v
 python3 scripts/hermes_live_teach.py --choose-source
 ```
 
