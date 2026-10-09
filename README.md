@@ -73,3 +73,13 @@ verified local context and persists the linked exchange. No source picker is nee
 See [continuation instructions](docs/GURU-004-continuation.md) for exact Mac commands,
 evidence requirements and limits. One correct-answer live continuation passed on the Mac at `a331b23`;
 live misconception/reteaching coverage remains unverified.
+
+## Stay in the teaching conversation
+
+The teaching command now stays open by default. After each response, answer at
+`Gurukul — your answer (/quit to finish):`. Type `/quit`, press Control-C, or send
+end-of-input to leave. The exit message provides a resume command for the last
+successful question. Invalid empty/oversized answers reprompt without a model call.
+Each submitted answer uses a fresh isolated worker and at most one paid request.
+Failures stop without automatic retries. `--once` retains one-turn diagnostic mode;
+`--verbose` displays full proof JSON. See [interactive verification](docs/GURU-004-interactive.md).

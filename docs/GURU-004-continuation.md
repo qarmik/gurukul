@@ -21,7 +21,8 @@ python3 scripts/hermes_live_teach.py --continue CALL_UUID
 
 The command displays the saved explanation and question. Type your answer on one
 line and press Return. The answer is read interactively, not put in shell history.
-Blank or oversized answers are refused; Ctrl-C cancels without automatic retry.
+Blank or oversized answers now reprompt without a request. `/quit`, Ctrl-C or
+end-of-input exits; no automatic retry occurs.
 The approved excerpt is restored from local evidence, so no source picker is needed.
 Do not remove the previous turn's evidence directory or original acceptance ledger.
 
@@ -29,7 +30,8 @@ Expected proof: status PASS, matching parent_call_id, one provider call with HTT
 200, empty tools before/after, all boundary probes DENIED, verified parent ledger
 record, and explanation/next question that respond to your answer. Each continuation
 is one paid request. A failed call does not retry or escalate automatically.
-To answer the next question, use the new successful call_id with --continue.
+The command now prompts for the next answer automatically. After exiting, use
+the printed resume command. `--once` restores the previous one-turn behavior.
 Reusing an older call_id deliberately branches from that older question.
 
 ## Continuity and admission

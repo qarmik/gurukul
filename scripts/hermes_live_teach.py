@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
-"""One real, Mac-isolated Hermes D01 teaching turn. No substitute model calls."""
+"""Interactive, Mac-isolated Hermes D01 teaching. No substitute model calls."""
 import argparse
+import copy
+import shlex
 import hashlib
 import json
 import os
@@ -53,7 +55,60 @@ def run(args):
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise ValueError('Another teaching turn is active; wait for it to finish')
-        return run_locked(args)
+        return conversation_loop(args, run_locked)
+
+
+class TeachingExit(Exception):
+    """User ended the answer prompt without submitting a turn."""
+
+
+def read_answer(previous):
+    while True:
+        try:
+            answer = input('Gurukul — your answer (/quit to finish): ')
+        except EOFError:
+            raise TeachingExit()
+        if answer.strip() == '/quit':
+            raise TeachingExit()
+        try:
+            return continuation_input(previous, answer)
+        except ValueError as exc:
+            print(str(exc) + '; please try again. No request sent.')
+
+
+def conversation_loop(args, turn):
+    current = copy.copy(args)
+    latest = args.continue_call
+    current.displayed_call = None
+    print('Gurukul teaching session. Answer at the Gurukul prompt; /quit or Control-C ends it.')
+    print('Each submitted answer makes at most one paid request. No automatic retries.')
+    try:
+        while True:
+            report = turn(current)
+            if report['status'] != 'PASS' or not report.get('parent_ledger_record_verified'):
+                print('Teaching stopped after a failed turn; no retry was made.')
+                return 1
+            latest = report['call_id']
+            if args.once:
+                return 0
+            current.continue_call = latest
+            current.source = None
+            current.choose_source = False
+            current.displayed_call = latest
+    except TeachingExit:
+        return 0
+    except KeyboardInterrupt:
+        print('Interrupted; no automatic retry. An in-flight request may already have been billed.')
+        return 130
+    except Exception as exc:
+        print('STOP:', type(exc).__name__, str(exc)[:500])
+        return 1
+    finally:
+        print('Gurukul session ended. You are returning to the shell.')
+        if latest:
+            command = ['python3', 'scripts/hermes_live_teach.py', '--runtime-root',
+                       str(args.runtime_root), '--continue', latest]
+            print('Resume the last successful question with:\n' + shlex.join(command))
 
 
 def run_locked(args):
@@ -85,10 +140,10 @@ def run_locked(args):
     continuation = None
     if args.continue_call:
         previous = load_previous(PROJECT / 'var/hermes-live', args.continue_call, manifest, config, exercise)
-        print('Previous explanation: ' + previous['teaching']['explanation'])
-        print('Question: ' + previous['teaching']['diagnostic_question'])
-        answer = input('Your answer (one line; Ctrl-C to cancel): ')
-        prompt, continuation = continuation_input(previous, answer)
+        if getattr(args, 'displayed_call', None) != args.continue_call:
+            print('Guru: ' + previous['teaching']['explanation'])
+            print('Question: ' + previous['teaching']['diagnostic_question'])
+        prompt, continuation = read_answer(previous)
         excerpt, provenance = previous['excerpt'], previous['provenance']
     else:
         prompt, excerpt, provenance = source_input(local_source, manifest, config, exercise)
@@ -193,7 +248,7 @@ def run_locked(args):
                 report['blocked_startup_probes'] = relay.blocked_startup_probes
                 if relay.response is not None:
                     (evidence / 'provider-response.json').write_text(json.dumps(relay.response, indent=2) + '\n')
-    except (Exception, SystemExit) as exc:
+    except (Exception, SystemExit, KeyboardInterrupt) as exc:
         report.update(status='BLOCKED', error_type=type(exc).__name__, error=str(exc)[:1000])
     finally:
         report['finished_at'] = now()
@@ -209,7 +264,7 @@ def run_locked(args):
         except Exception as exc:
             report.update(status='BLOCKED', ledger_error_type=type(exc).__name__)
         (evidence / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
-    print(json.dumps({'status': report['status'], 'call_id': call_id, 'hermes_revision': PIN,
+    summary = {'status': report['status'], 'call_id': call_id, 'hermes_revision': PIN,
                       'root_call_id': report.get('root_call_id', call_id),
                       'parent_call_id': (report.get('continuation') or {}).get('parent_call_id'),
                       'run_conversation_path': report.get('worker', {}).get('run_path'),
@@ -229,15 +284,22 @@ def run_locked(args):
                       'error': report.get('error'), 'worker_error': report.get('worker', {}).get('error'),
                       'relay_rejections': report.get('relay_rejections'),
                       'blocked_startup_probes': report.get('blocked_startup_probes'),
-                      'evidence_directory': str(evidence)}, indent=2))
+                      'evidence_directory': str(evidence)}
+    if args.once or args.verbose or report['status'] != 'PASS':
+        print(json.dumps(summary, indent=2))
+    else:
+        print('PASS — isolated turn saved; ledger verified. Call: ' + call_id)
+        print('Evidence: ' + str(evidence))
     if report['status'] == 'PASS':
         print(report['teaching']['explanation'])
         print(report['teaching']['diagnostic_question'])
-    return 0 if report['status'] == 'PASS' else 1
+    return report
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--once', action='store_true', help='Run one turn and exit (diagnostic mode)')
+    parser.add_argument('--verbose', action='store_true', help='Print full verification JSON after each turn')
     parser.add_argument('--runtime-root', type=Path, default=Path.home() / 'GurukulRuntime')
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--continue', dest='continue_call', metavar='CALL_UUID',
