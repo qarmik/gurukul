@@ -8,6 +8,11 @@ host or port. The relay still binds/connects via 127.0.0.1. A new Mac-only test
 compiles the actual profile and verifies relay reachability, denial of a second
 listening port, and ledger read/write denial. It makes no provider call. Linux
 skips this test and cannot provide acceptance evidence for the corrected rule.
+The first native regression test then hit Apple's system Python launcher: it tried
+to spawn Python.app, which the sandbox correctly disallowed. The test now selects
+the same prepared dependency venv and clean environment as the live worker, and
+asserts venv identity inside the sandbox. No additional executable is permitted;
+the production sandbox policy is unchanged by this test-harness correction.
 The earlier isolated import probe passed on the Mac at be913af. The user confirmed
 dedicated OpenAI credential storage outside Git. Account/model access remains unverified
 until the live inference request succeeds. No recorded live teaching response exists yet.
