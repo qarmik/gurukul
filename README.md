@@ -63,3 +63,12 @@ The worker never receives the OpenAI key; Claude escalation is not enabled.
 All teaching output and proof remain under ignored var/hermes-live/. Development
 tests are separate from the user-reported live Mac acceptance. See
 [GURU-004 acceptance](docs/GURU-004-acceptance.md) for the verified scope and remaining work.
+
+## Continue the saved teaching question
+
+Run `python3 scripts/hermes_live_teach.py --continue CALL_UUID` with a successful
+teaching call ID. The terminal shows its explanation/question and asks for your
+answer; the isolated worker returns feedback and one next question. Gurukul restores
+verified local context and persists the linked exchange. No source picker is needed.
+See [continuation instructions](docs/GURU-004-continuation.md) for exact Mac commands,
+evidence requirements and limits. Live continuation acceptance is pending.

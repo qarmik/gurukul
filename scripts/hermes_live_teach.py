@@ -15,6 +15,7 @@ from uuid import uuid4
 PROJECT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT / 'src'))
 from gurukul.hermes_relay import Relay, private_key
+from gurukul.hermes_continuation import load_previous, continuation_input
 from gurukul.hermes_teaching import SYSTEM_PROMPT, record_result, source_input, teaching_response
 from gurukul.store import Store, canonical, now
 from hermes_import_probe import PIN, installed_runtime
@@ -41,6 +42,23 @@ def sandbox_profile(work, source, python, venv, base, paths, state, port, actual
 def run(args):
     if sys.platform != 'darwin':
         raise ValueError('Live isolation acceptance must run on the Mac')
+    import fcntl
+    os.umask(0o077)
+    state = PROJECT / 'var/hermes-live'
+    state.mkdir(parents=True, exist_ok=True)
+    # Serialise adapter turns so a second worker cannot change the shared ledger
+    # while the first worker is proving its denial boundary.
+    with (state / 'turn.lock').open('a') as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise ValueError('Another teaching turn is active; wait for it to finish')
+        return run_locked(args)
+
+
+def run_locked(args):
+    if sys.platform != 'darwin':
+        raise ValueError('Live isolation acceptance must run on the Mac')
     os.umask(0o077)
     runtime = args.runtime_root.resolve()
     source = runtime / 'hermes-agent'
@@ -63,17 +81,33 @@ def run(args):
         local_source = Path(selected.strip())
     exercise = json.loads((PROJECT / 'content/c0_b01/d01.json').read_text())
     manifest = json.loads((PROJECT / 'content/sources.json').read_text())
-    prompt, excerpt, provenance = source_input(local_source, manifest, config, exercise)
+    previous = None
+    continuation = None
+    if args.continue_call:
+        previous = load_previous(PROJECT / 'var/hermes-live', args.continue_call, manifest, config, exercise)
+        print('Previous explanation: ' + previous['teaching']['explanation'])
+        print('Question: ' + previous['teaching']['diagnostic_question'])
+        answer = input('Your answer (one line; Ctrl-C to cancel): ')
+        prompt, continuation = continuation_input(previous, answer)
+        excerpt, provenance = previous['excerpt'], previous['provenance']
+    else:
+        prompt, excerpt, provenance = source_input(local_source, manifest, config, exercise)
     state = (PROJECT / 'var').resolve()
     state.mkdir(exist_ok=True)
     subprocess.run(['git', '-C', str(PROJECT), 'check-ignore', '-q', str(state / 'hermes-live/proof.json')], check=True)
     call_id = str(uuid4())
     evidence = state / 'hermes-live' / call_id
     evidence.mkdir(parents=True)
-    ledger = evidence / 'acceptance.sqlite3'
+    ledger = previous['ledger'] if previous else evidence / 'acceptance.sqlite3'
     canary = evidence / 'worker-must-not-create'
     store = Store(ledger)
-    session = store.start(exercise)
+    if previous:
+        session = store.resume()['session']
+        if session['id'] != previous['session_id'] or session['phase'] not in ('teaching', 'remediation'):
+            store.close()
+            raise ValueError('Teaching session changed; continuation refused')
+    else:
+        session = store.start(exercise)
     # This is a dedicated integration session, never a learner assessment attempt.
     baseline = hashlib.sha256(ledger.read_bytes()).hexdigest()
     with ledger.open('r+b'):
@@ -86,6 +120,9 @@ def run(args):
               'provenance': provenance, 'grants_mastery': False,
               'source_scope': 'Approved D01 HTML; book pages are not ingested by this test',
               'model_policy_version': policy['policy_version'], 'escalation_authority': 'gurukul'}
+    if previous:
+        report.update(root_call_id=previous['root_call_id'], continuation=continuation,
+                      scope='live_teaching_continuation_only')
     (evidence / 'approved-excerpt.txt').write_text(excerpt)
     try:
         with tempfile.TemporaryDirectory(prefix='teaching-worker-', dir=runtime) as tmp, \
@@ -173,6 +210,8 @@ def run(args):
             report.update(status='BLOCKED', ledger_error_type=type(exc).__name__)
         (evidence / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps({'status': report['status'], 'call_id': call_id, 'hermes_revision': PIN,
+                      'root_call_id': report.get('root_call_id', call_id),
+                      'parent_call_id': (report.get('continuation') or {}).get('parent_call_id'),
                       'run_conversation_path': report.get('worker', {}).get('run_path'),
                       'boundary_before': report.get('worker', {}).get('boundary_before'),
                       'boundary_after': report.get('worker', {}).get('boundary_after'),
@@ -201,11 +240,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--runtime-root', type=Path, default=Path.home() / 'GurukulRuntime')
     group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--continue', dest='continue_call', metavar='CALL_UUID',
+                       help='Answer the saved question and continue a verified local teaching turn')
     group.add_argument('--source', type=Path, help='Approved local C0-B01 HTML file')
     group.add_argument('--choose-source', action='store_true', help='Choose the approved HTML with the Mac file picker')
     args = parser.parse_args()
     try:
         return run(args)
+    except KeyboardInterrupt:
+        print('Cancelled; no automatic retry.')
+        return 130
     except (Exception, SystemExit) as exc:
         print('STOP:', type(exc).__name__, str(exc)[:500])
         return 1

@@ -87,5 +87,6 @@ def record_result(store, call_id, session_id, result):
             causation_id,idempotency_key,privacy_class,payload_json)
             VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)''',
             (str(uuid4()), 'teaching.integration_finished', 1, timestamp, timestamp,
-             'gurukul.hermes_adapter', call_id, session_id, call_id, None,
+             'gurukul.hermes_adapter', call_id, session_id, result.get('root_call_id', call_id),
+             (result.get('continuation') or {}).get('parent_event_id'),
              'teaching.integration_finished:' + call_id, 'personal_learning', canonical(result)))

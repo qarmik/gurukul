@@ -6,6 +6,9 @@ a teaching response through GPT-6 Luna; pre/post tools were empty and all bounda
 probes were denied. Gurukul verified its parent-owned ledger record. See
 [GURU-004 acceptance](GURU-004-acceptance.md). No repeat live call is required.
 
+To answer a saved diagnostic question, use the [continuation command](GURU-004-continuation.md).
+Its implementation is tested offline; real Mac continuation acceptance is pending.
+
 ## Historical troubleshooting and reproduction instructions
 
 The pending/blocked results below describe earlier revisions, superseded by the
