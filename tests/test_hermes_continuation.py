@@ -19,7 +19,8 @@ EXERCISE = json.loads((ROOT / 'content/c0_b01/d01.json').read_text())
 class ContinuationTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
-        self.root = Path(self.temp.name)
+        # macOS /var aliases /private/var; match the admitted canonical path.
+        self.root = Path(self.temp.name).resolve()
         self.call = str(uuid4())
         self.directory = self.root / self.call
         self.directory.mkdir()

@@ -64,3 +64,9 @@ Eight new offline continuation tests passed. The Hermes-related suite ran 33 tes
 32 passed, one actual-Mac-only sandbox test skipped on Linux. These tests include
 synthetic fixtures and do not substitute for a real Hermes diagnosis. No new live
 model call was made in the development environment. GURU-003 was not reverified.
+
+Mac follow-up: the first run passed six tests and failed two path comparisons
+because the fixture used /var while admission returned /private/var. The fixture
+now resolves its temporary root before constructing expected paths. Runtime
+admission and isolation are unchanged; rerun the eight continuation tests before
+the live continuation.
