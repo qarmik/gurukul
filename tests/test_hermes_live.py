@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from gurukul.hermes_relay import Relay, STARTUP_PROBE_PATHS, private_key, provider_error, validate_request
+from gurukul.hermes_relay import Relay, STARTUP_PROBE_PATHS, private_key, provider_error, upstream_request, validate_request
 from gurukul.hermes_teaching import record_result, source_input, teaching_response
 from gurukul.store import Store
 
@@ -43,6 +43,19 @@ class RequestPolicyTests(unittest.TestCase):
 
     def test_text_request_allowed(self):
         self.assertEqual(self.body, validate_request(self.body, CONFIG['model'], 'approved', 1024))
+
+    def test_token_translation_preserves_budget_and_original_request(self):
+        legacy = dict(self.body)
+        legacy['max_tokens'] = legacy.pop('max_completion_tokens')
+        original = copy.deepcopy(legacy)
+        self.assertEqual(self.body, upstream_request(legacy, CONFIG['model'], 'approved', 1024))
+        self.assertEqual(original, legacy)
+        self.assertEqual(self.body, upstream_request(self.body, CONFIG['model'], 'approved', 1024))
+
+    def test_token_translation_rejects_conflicting_or_excessive_limits(self):
+        for body in (dict(self.body, max_tokens=512), dict(self.body, max_completion_tokens=1025)):
+            with self.subTest(body=body), self.assertRaises(ValueError):
+                upstream_request(body, CONFIG['model'], 'approved', 1024)
 
     def test_text_blocks_allowed(self):
         self.body['messages'][0]['content'] = [{'type': 'text', 'text': 'approved'}]
@@ -85,19 +98,23 @@ class RequestPolicyTests(unittest.TestCase):
             self.assertEqual([], relay.calls)
 
     def test_one_request_reservation_survives_provider_failure(self):
+        legacy = dict(self.body)
+        legacy['max_tokens'] = legacy.pop('max_completion_tokens')
         with Relay(CONFIG, Path('/unused'), 'approved') as relay:
             relay.ready = True
             with patch.object(relay, 'forward', side_effect=OSError('synthetic transport failure')) as forward:
                 for expected in (502, 403):
                     conn = http.client.HTTPConnection('127.0.0.1', relay.port)
-                    conn.request('POST', '/v1/chat/completions', json.dumps(self.body),
+                    conn.request('POST', '/v1/chat/completions', json.dumps(legacy),
                                  {'Authorization': 'Bearer ' + relay.token})
                     response = conn.getresponse()
                     self.assertEqual(expected, response.status)
                     response.read()
                     conn.close()
                 self.assertEqual(1, forward.call_count)
+                self.assertEqual(self.body, forward.call_args.args[0])
             self.assertEqual(1, len(relay.calls))
+            self.assertEqual('max_tokens_to_max_completion_tokens', relay.calls[0]['adapter_transform'])
 
     def test_known_startup_probes_stay_denied_without_provider_forwarding(self):
         with Relay(CONFIG, Path('/unused'), 'approved') as relay:

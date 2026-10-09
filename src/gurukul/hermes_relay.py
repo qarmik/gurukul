@@ -104,6 +104,17 @@ def validate_request(body, model, prompt, max_tokens):
     return body
 
 
+def upstream_request(body, model, prompt, max_tokens):
+    """Translate the pinned Hermes token field for this OpenAI Chat route."""
+    validate_request(body, model, prompt, max_tokens)
+    forwarded = dict(body)
+    legacy_limit = forwarded.pop('max_tokens', None)
+    if legacy_limit is not None:
+        forwarded['max_completion_tokens'] = legacy_limit
+    validate_request(forwarded, model, prompt, max_tokens)
+    return forwarded
+
+
 class Relay:
     def __init__(self, config, key_path, prompt):
         self.config, self.key_path, self.prompt = config, Path(key_path), prompt
@@ -170,6 +181,8 @@ class Relay:
                         raise ValueError('Incomplete request')
                     body = validate_request(json.loads(raw), owner.config['model'], owner.prompt,
                                             owner.config['max_output_tokens'])
+                    forwarded = upstream_request(body, owner.config['model'], owner.prompt,
+                                                 owner.config['max_output_tokens'])
                 except (ValueError, OSError):
                     return self.reject('request policy mismatch')
                 call = {'started_at': now(), 'requested_model': owner.config['model'],
@@ -180,9 +193,13 @@ class Relay:
                 call['request_fields'] = sorted(body)
                 call['request_parameters'] = {k: body[k] for k in
                     ('model', 'max_tokens', 'max_completion_tokens', 'reasoning_effort', 'stream', 'store') if k in body}
+                call['upstream_request_parameters'] = {k: forwarded[k] for k in
+                    ('model', 'max_completion_tokens', 'reasoning_effort', 'stream', 'store') if k in forwarded}
+                call['upstream_request_sha256'] = hashlib.sha256(json.dumps(forwarded).encode()).hexdigest()
+                call['adapter_transform'] = 'max_tokens_to_max_completion_tokens' if body.get('max_tokens') is not None else 'none'
                 owner.calls.append(call)  # Reserve before network I/O, even if it fails.
                 try:
-                    status, response, request_id = owner.forward(body)
+                    status, response, request_id = owner.forward(forwarded)
                     call.update(http_status=status, provider_request_id=request_id,
                                 resolved_model=response.get('model'), usage=response.get('usage'),
                                 outcome='completed' if status == 200 else 'provider_rejected')

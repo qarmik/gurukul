@@ -1,5 +1,14 @@
 # GURU-004A/B — one real isolated teaching turn
 
+The c83effb Mac diagnostic identified `unsupported_parameter: max_tokens`; OpenAI
+explicitly requested `max_completion_tokens`. The relay now validates the original
+Hermes request, translates only that token-limit field, revalidates, and forwards
+the same model/messages and limit. Both original and upstream parameter summaries
+and request hashes are retained. Conflicting limits are rejected before forwarding;
+the 1,024-token cap and one-request budget remain unchanged. This is transport
+compatibility for the actual AIAgent call, not a replacement agent/model invocation.
+21 contract tests pass; successful live teaching still requires the next Mac run.
+
 Latest Mac result at fe3ba36: genuine turn_facade and conversation_loop invocation
 verified; pre/post tools empty; all eight pre/post denial checks passed. The single
 provider request returned HTTP 400, so teaching acceptance remains BLOCKED. The

@@ -185,6 +185,7 @@ def run(args):
                       'provider_http_status': [c.get('http_status') for c in report.get('provider_calls', [])],
                       'provider_errors': [c.get('provider_error') for c in report.get('provider_calls', [])],
                       'request_parameters': [c.get('request_parameters') for c in report.get('provider_calls', [])],
+                      'upstream_request_parameters': [c.get('upstream_request_parameters') for c in report.get('provider_calls', [])],
                       'parent_ledger_record_verified': report.get('parent_ledger_record_verified', False),
                       'error': report.get('error'), 'worker_error': report.get('worker', {}).get('error'),
                       'relay_rejections': report.get('relay_rejections'),
