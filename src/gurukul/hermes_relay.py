@@ -7,6 +7,7 @@ import hashlib
 import http.client
 import json
 import os
+import re
 from pathlib import Path
 import secrets
 import ssl
@@ -21,6 +22,30 @@ RESPONSE_LIMIT = 256000
 # Exact GET waterfall in pinned agent/model_metadata.py:detect_local_server_type.
 # These remain HTTP 403, never forwarded and never presented as model metadata.
 STARTUP_PROBE_PATHS = frozenset({'/api/v1/models', '/api/tags', '/v1/props', '/props', '/version'})
+
+
+def provider_error(data, secret):
+    """Retain a bounded diagnostic, never the raw error body or credential echo."""
+    try:
+        error = json.loads(data).get('error')
+    except (ValueError, AttributeError):
+        return {'type': 'unparseable_provider_error'}
+    if not isinstance(error, dict):
+        return {'type': 'unparseable_provider_error'}
+    result = {}
+    for name in ('type', 'code', 'param', 'message'):
+        value = error.get(name)
+        if value is None:
+            result[name] = None
+        elif isinstance(value, str):
+            # Credential-bearing diagnostics are unnecessary for parameter debugging.
+            if (secret in value or re.search(r'(?i)sk-|api.?key|authorization|bearer|credential', value)):
+                result[name] = '[credential-related diagnostic omitted]'
+            else:
+                result[name] = ' '.join(value.split())[:600 if name == 'message' else 120]
+        else:
+            result[name] = '[non-text diagnostic omitted]'
+    return result
 
 
 def private_key(path):
@@ -152,6 +177,9 @@ class Relay:
                         'tool_count': 0, 'estimated_cost': None, 'actual_cost': None,
                         'currency': 'USD', 'cost_status': 'not_available', 'pricing_source': None,
                         'pricing_version': None, 'escalation': False, 'escalation_reason': None}
+                call['request_fields'] = sorted(body)
+                call['request_parameters'] = {k: body[k] for k in
+                    ('model', 'max_tokens', 'max_completion_tokens', 'reasoning_effort', 'stream', 'store') if k in body}
                 owner.calls.append(call)  # Reserve before network I/O, even if it fails.
                 try:
                     status, response, request_id = owner.forward(body)
@@ -174,6 +202,7 @@ class Relay:
                         owner.response = response
                         self.reply(200, response)
                     else:
+                        call['provider_error'] = response.get('error')
                         self.reply(status, {'error': {'message': 'OpenAI request rejected; inspect local HTTP status.',
                                                      'type': 'provider_error', 'code': 'provider_rejected'}})
                 except Exception as exc:
@@ -204,7 +233,7 @@ class Relay:
             if len(data) > RESPONSE_LIMIT:
                 raise ValueError('Provider response too large')
             if reply.status != 200:
-                return reply.status, {}, reply.getheader('x-request-id')
+                return reply.status, {'error': provider_error(data, secret)}, reply.getheader('x-request-id')
             return reply.status, json.loads(data), reply.getheader('x-request-id')
         finally:
             connection.close()

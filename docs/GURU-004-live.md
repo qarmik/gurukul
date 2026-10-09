@@ -1,5 +1,14 @@
 # GURU-004A/B — one real isolated teaching turn
 
+Latest Mac result at fe3ba36: genuine turn_facade and conversation_loop invocation
+verified; pre/post tools empty; all eight pre/post denial checks passed. The single
+provider request returned HTTP 400, so teaching acceptance remains BLOCKED. The
+original relay discarded the provider error body. The diagnostic correction retains
+only bounded type/code/param/message fields, omits credential-related text, and prints
+selected request parameters without prompt contents. No request parameter, model,
+tool permission, network rule or retry budget is changed by this correction.
+19 relay/source/evidence development tests pass, including three diagnostic tests.
+
 Status: 16 relay/source/evidence development tests PASS; Mac live acceptance PENDING.
 The native boundary regression passed on the Mac at ed6a8f5. The live worker then
 reported all eight pre-import denials and zero provider calls, but construction

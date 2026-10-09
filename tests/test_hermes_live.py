@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from gurukul.hermes_relay import Relay, STARTUP_PROBE_PATHS, private_key, validate_request
+from gurukul.hermes_relay import Relay, STARTUP_PROBE_PATHS, private_key, provider_error, validate_request
 from gurukul.hermes_teaching import record_result, source_input, teaching_response
 from gurukul.store import Store
 
@@ -19,6 +19,24 @@ EXERCISE = json.loads((ROOT / 'content/c0_b01/d01.json').read_text())
 
 
 class RequestPolicyTests(unittest.TestCase):
+    def test_provider_parameter_error_preserved_without_raw_body(self):
+        detail = {'type': 'invalid_request_error', 'code': 'unsupported_parameter',
+                  'param': 'max_tokens', 'message': 'Unsupported parameter: max_tokens.'}
+        self.assertEqual(detail, provider_error(json.dumps({'error': detail, 'other': 'discard'}), 'synthetic-secret'))
+
+    def test_provider_credential_echo_omitted_in_all_diagnostic_fields(self):
+        secret = 'synthetic-secret-value'
+        for echo in (secret, 'Incorrect API key: sk-test***suffix', 'Authorization: Bearer hidden'):
+            raw = json.dumps({'error': {k: echo for k in ('type', 'code', 'param', 'message')}})
+            clean = provider_error(raw, secret)
+            self.assertEqual({'[credential-related diagnostic omitted]'}, set(clean.values()))
+
+    def test_provider_error_malformed_and_oversized_text_bounded(self):
+        self.assertEqual({'type': 'unparseable_provider_error'}, provider_error('<html>error</html>', 'synthetic-secret'))
+        clean = provider_error(json.dumps({'error': {'message': 'x' * 10000, 'param': {'unexpected': 'object'}}}), 'synthetic-secret')
+        self.assertEqual(600, len(clean['message']))
+        self.assertEqual('[non-text diagnostic omitted]', clean['param'])
+
     def setUp(self):
         self.body = {'model': CONFIG['model'], 'messages': [{'role': 'user', 'content': 'approved'}],
                      'max_completion_tokens': 512, 'store': False}
