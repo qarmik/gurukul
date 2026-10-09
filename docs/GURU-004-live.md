@@ -1,5 +1,16 @@
 # GURU-004A/B — one real isolated teaching turn
 
+Current status: **PASS — one isolated live teaching turn**, reported from the Mac
+at Gurukul revision `19eee63`. The actual pinned Hermes conversation path returned
+a teaching response through GPT-6 Luna; pre/post tools were empty and all boundary
+probes were denied. Gurukul verified its parent-owned ledger record. See
+[GURU-004 acceptance](GURU-004-acceptance.md). No repeat live call is required.
+
+## Historical troubleshooting and reproduction instructions
+
+The pending/blocked results below describe earlier revisions, superseded by the
+acceptance above. Commands are retained for reproduction, not a request to rerun.
+
 The c83effb Mac diagnostic identified `unsupported_parameter: max_tokens`; OpenAI
 explicitly requested `max_completion_tokens`. The relay now validates the original
 Hermes request, translates only that token-limit field, revalidates, and forwards

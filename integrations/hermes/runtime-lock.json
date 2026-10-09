@@ -2,7 +2,7 @@
   "runtime": "NousResearch/hermes-agent",
   "repository": "https://github.com/NousResearch/hermes-agent.git",
   "revision": "cc75e8f4021f7efab99158f57601be4d691a6da9",
-  "pin_status": "mac_import_verified_live_turn_pending",
+  "pin_status": "mac_import_and_live_turn_verified",
   "python_runtime_target": "3.14",
   "entry_point": "run_agent.AIAgent",
   "turn_method": "run_conversation",
@@ -19,9 +19,9 @@
   "provider": "openai_direct",
   "model": "gpt-6-luna",
   "auth_method": "dedicated_api_key",
-  "live_integration_status": "live_worker_implemented_mac_acceptance_pending",
-  "tool_denial_status": "mac_empty_selection_verified_instantiated_agent_and_live_turn_pending",
-  "ledger_isolation_status": "mac_import_worker_denial_verified_live_worker_pending",
+  "live_integration_status": "mac_one_turn_acceptance_passed",
+  "tool_denial_status": "mac_live_tools_empty_before_and_after",
+  "ledger_isolation_status": "mac_live_read_write_create_denied_before_and_after",
   "model_policy": "config/model-policy.json",
   "import_verification": {
     "gurukul_revision": "be913af20acd9c8ec2eb458483aa9e8abbfcaf43",
@@ -39,5 +39,13 @@
     "live_turn": false
   },
   "live_test_command": "python3 scripts/hermes_live_teach.py --choose-source",
-  "live_test_documentation": "docs/GURU-004-live.md"
+  "live_test_documentation": "docs/GURU-004-live.md",
+  "live_verification": {
+    "gurukul_revision": "19eee63a95046338261d2d871c7974971a492db3",
+    "evidence_origin": "user_supplied_mac_terminal_output",
+    "scope": "one_isolated_teaching_turn",
+    "status": "PASS",
+    "resolved_model": "gpt-6-luna",
+    "acceptance_documentation": "docs/GURU-004-acceptance.md"
+  }
 }

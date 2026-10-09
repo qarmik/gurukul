@@ -1,4 +1,4 @@
-# Gurukul — GURU-004 live integration pending
+# Gurukul — GURU-004 isolated live teaching verified
 
 Local session persistence and bounded execution for C0-B01-D01. Python 3.11+; this increment uses only the standard library.
 
@@ -11,13 +11,13 @@ PYTHONPATH=src python3 -m gurukul events
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 ```
 
-The execution runner targets macOS and Linux; this release was tested on Linux. Windows execution is explicitly refused. Mac acceptance remains to be run on the learner machine.
+The execution runner targets macOS and Linux; this release was tested on Linux. Windows execution is explicitly refused. GURU-002 and GURU-003 Mac acceptance passed, as reported by the learner.
 
 Run from the project root or pass `--root /absolute/path/to/gurukul` before the command. Local state is created under `var/`. Close the terminal and run resume in a new process: the same session and pinned exercise return. Repeated start does not duplicate the session or its event.
 
 Implemented: D01 package, version-pinned exercise storage, atomic session/event creation, append-only event guards, restart/resume and explicit Hermes-not-integrated status.
 
-The isolated Hermes live-test harness is implemented; Mac live teaching acceptance is pending. The normal session CLI does not yet invoke the tutor. Hints, mastery decisions and retrieval transitions remain unimplemented. No learner capability is claimed by these software tests. The initial teaching phase is persisted; do not mistake it for a completed lesson.
+The isolated Hermes live-test harness passed one real Mac teaching turn at 19eee63. The normal session CLI does not yet invoke the tutor. Hints, mastery decisions and retrieval transitions remain unimplemented. No learner capability is claimed by these software tests. The initial teaching phase is persisted; do not mistake it for a completed lesson.
 
 See docs/architecture-v0.1.md for the corrected design and docs/verification.txt for actual checks. The demonstration database is excluded from the deliverable; a fresh start creates your own session. Original curriculum and book files are not included.
 
@@ -55,10 +55,11 @@ Use the UUIDs returned when you saved each run. The checker evaluates requiremen
 ## One real Hermes teaching turn (GURU-004)
 
 GURU-003 passed all 24 new tests on the Mac; do not repeat that verification.
-The pinned real Hermes import and isolated denial probe also passed. The next test
-instantiates AIAgent and calls run_conversation through a Mac sandbox and a parent-owned,
-one-request OpenAI relay. See [GURU-004 live instructions](docs/GURU-004-live.md) for
+The pinned real Hermes import, isolated denial probe and one live teaching turn passed.
+The harness instantiated AIAgent and called run_conversation through a Mac sandbox
+and a parent-owned, one-request OpenAI relay. See [GURU-004 live instructions](docs/GURU-004-live.md) for
 the exact commands, approved-source picker, restrictions and acceptance conditions.
 The worker never receives the OpenAI key; Claude escalation is not enabled.
 All teaching output and proof remain under ignored var/hermes-live/. Development
-tests are not a substitute for the outstanding live Mac/model test.
+tests are separate from the user-reported live Mac acceptance. See
+[GURU-004 acceptance](docs/GURU-004-acceptance.md) for the verified scope and remaining work.
