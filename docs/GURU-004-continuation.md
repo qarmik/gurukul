@@ -1,6 +1,7 @@
 # GURU-004-CONTINUE — answer and receive a follow-up
 
-Implementation complete; live Mac continuation acceptance pending. The earlier
+Live Mac continuation acceptance: **PASS** at `a331b23`, based on user-supplied
+terminal output. All eight continuation tests passed on the Mac. The earlier
 one-turn acceptance remains valid. No new runtime, model, tools or permissions.
 
 From the Mac repository, pull and run only the new continuation tests:
@@ -70,3 +71,18 @@ because the fixture used /var while admission returned /private/var. The fixture
 now resolves its temporary root before constructing expected paths. Runtime
 admission and isolation are unchanged; rerun the eight continuation tests before
 the live continuation.
+
+## Live acceptance scope
+
+The user-reported Mac run invoked the actual pinned Hermes conversation path,
+resolved GPT-6 Luna, and completed one provider request with HTTP 200. Tools were
+empty and all eight boundary probes were denied before and after the turn. The
+parent persisted and verified the linked ledger record. The response recognized a
+correct answer and asked a relevant conceptual variation. No learner transcript,
+answer, call identifier or raw runtime evidence is copied into Git.
+
+This verifies one correct-answer continuation from a saved initial turn. Live
+misconception diagnosis/reteaching and a longer continuation chain have not yet
+been demonstrated. It does not establish mastery or full-history memory. Earlier
+pending statuses and path failures above are historical; no repeat test run is
+required to acknowledge this acceptance.

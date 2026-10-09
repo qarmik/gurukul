@@ -71,4 +71,5 @@ teaching call ID. The terminal shows its explanation/question and asks for your
 answer; the isolated worker returns feedback and one next question. Gurukul restores
 verified local context and persists the linked exchange. No source picker is needed.
 See [continuation instructions](docs/GURU-004-continuation.md) for exact Mac commands,
-evidence requirements and limits. Live continuation acceptance is pending.
+evidence requirements and limits. One correct-answer live continuation passed on the Mac at `a331b23`;
+live misconception/reteaching coverage remains unverified.
