@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from gurukul.hermes_relay import Relay, private_key, validate_request
+from gurukul.hermes_relay import Relay, STARTUP_PROBE_PATHS, private_key, validate_request
 from gurukul.hermes_teaching import record_result, source_input, teaching_response
 from gurukul.store import Store
 
@@ -80,6 +80,47 @@ class RequestPolicyTests(unittest.TestCase):
                     conn.close()
                 self.assertEqual(1, forward.call_count)
             self.assertEqual(1, len(relay.calls))
+
+    def test_known_startup_probes_stay_denied_without_provider_forwarding(self):
+        with Relay(CONFIG, Path('/unused'), 'approved') as relay:
+            with patch.object(relay, 'forward', side_effect=AssertionError('must never forward')):
+                for path in STARTUP_PROBE_PATHS:
+                    conn = http.client.HTTPConnection('127.0.0.1', relay.port)
+                    conn.request('GET', path, headers={'Authorization': 'Bearer ' + relay.token})
+                    response = conn.getresponse()
+                    self.assertEqual(403, response.status)
+                    response.read()
+                    conn.close()
+            self.assertEqual(5, len(relay.blocked_startup_probes))
+            self.assertEqual([], relay.rejections)
+            self.assertEqual([], relay.calls)
+
+    def test_probe_exceptions_do_not_cover_wrong_auth_queries_or_live_turn(self):
+        for path, token_valid, ready in [('/props?upstream=other', True, False),
+                                         ('/props', False, False), ('/props', True, True)]:
+            with self.subTest(path=path, token_valid=token_valid, ready=ready):
+                with Relay(CONFIG, Path('/unused'), 'approved') as relay:
+                    relay.ready = ready
+                    conn = http.client.HTTPConnection('127.0.0.1', relay.port)
+                    conn.request('GET', path, headers={'Authorization': 'Bearer ' + (relay.token if token_valid else 'invalid')})
+                    response = conn.getresponse()
+                    self.assertEqual(403, response.status)
+                    response.read()
+                    conn.close()
+                    self.assertEqual([], relay.blocked_startup_probes)
+                    self.assertEqual(1, len(relay.rejections))
+
+    def test_fatal_rejection_prevents_ready_and_inference(self):
+        with Relay(CONFIG, Path('/unused'), 'approved') as relay:
+            for method, path in [('GET', '/unexpected'), ('POST', '/ready'), ('POST', '/v1/chat/completions')]:
+                conn = http.client.HTTPConnection('127.0.0.1', relay.port)
+                conn.request(method, path, headers={'Authorization': 'Bearer ' + relay.token})
+                response = conn.getresponse()
+                self.assertEqual(403, response.status)
+                response.read()
+                conn.close()
+            self.assertFalse(relay.ready)
+            self.assertEqual([], relay.calls)
 
 
 class SourceAndEvidenceTests(unittest.TestCase):

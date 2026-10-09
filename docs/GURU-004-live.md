@@ -1,6 +1,21 @@
 # GURU-004A/B — one real isolated teaching turn
 
-Status: implementation and 13 new development tests PASS; Mac live acceptance PENDING.
+Status: 16 relay/source/evidence development tests PASS; Mac live acceptance PENDING.
+The native boundary regression passed on the Mac at ed6a8f5. The live worker then
+reported all eight pre-import denials and zero provider calls, but construction
+stopped because the adapter configured 32,768 context tokens, below Hermes's 64,000
+minimum. The adapter now sets a conservative 64,000-token working window (not a
+claim about the model's maximum). The output/request limits remain unchanged.
+
+Source inspection of pinned `agent/model_metadata.py:detect_local_server_type`
+identified the five-request local-backend detection sequence, consistent with the
+five prior generic route denials. Exact authenticated pre-turn GET probes for
+`/api/v1/models`, `/api/tags`, `/v1/props`, `/props`, and `/version` remain HTTP 403
+and never reach the provider. They are now recorded as `blocked_startup_probes`
+rather than fatal `relay_rejections`. No fabricated metadata is returned. Queries,
+wrong credentials, different paths/methods and post-admission probes are not covered
+by this classification. Any fatal relay rejection prevents turn admission. Three
+additional HTTP tests verify these distinctions and zero inference forwarding.
 The first Mac live attempt stopped at sandbox profile compilation: its SBPL parser
 requires `localhost` (or a wildcard) as the network host, and rejected the numeric
 loopback address. The rule now uses `localhost:<relay-port>`; there is no wildcard

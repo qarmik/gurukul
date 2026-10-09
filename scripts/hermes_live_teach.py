@@ -97,7 +97,7 @@ def run(args):
             cwd.mkdir()
             base_url = 'http://127.0.0.1:' + str(relay.port) + '/v1'
             hermes_config = {'model': {'default': config['model'], 'provider': 'openai',
-                                      'base_url': base_url, 'streaming': False, 'context_length': 32768},
+                                      'base_url': base_url, 'streaming': False, 'context_length': 64000},
                              'compression': {'enabled': False}, 'mcp_servers': {}}
             (home / 'config.yaml').write_text(json.dumps(hermes_config))  # JSON is valid YAML.
             denied_listener.bind(('127.0.0.1', 0))
@@ -153,6 +153,7 @@ def run(args):
             finally:
                 report['provider_calls'] = relay.calls
                 report['relay_rejections'] = relay.rejections
+                report['blocked_startup_probes'] = relay.blocked_startup_probes
                 if relay.response is not None:
                     (evidence / 'provider-response.json').write_text(json.dumps(relay.response, indent=2) + '\n')
     except (Exception, SystemExit) as exc:
@@ -185,6 +186,7 @@ def run(args):
                       'parent_ledger_record_verified': report.get('parent_ledger_record_verified', False),
                       'error': report.get('error'), 'worker_error': report.get('worker', {}).get('error'),
                       'relay_rejections': report.get('relay_rejections'),
+                      'blocked_startup_probes': report.get('blocked_startup_probes'),
                       'evidence_directory': str(evidence)}, indent=2))
     if report['status'] == 'PASS':
         print(report['teaching']['explanation'])

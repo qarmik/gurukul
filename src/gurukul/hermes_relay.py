@@ -18,6 +18,9 @@ from gurukul.store import now
 
 REQUEST_LIMIT = 120000
 RESPONSE_LIMIT = 256000
+# Exact GET waterfall in pinned agent/model_metadata.py:detect_local_server_type.
+# These remain HTTP 403, never forwarded and never presented as model metadata.
+STARTUP_PROBE_PATHS = frozenset({'/api/v1/models', '/api/tags', '/v1/props', '/props', '/version'})
 
 
 def private_key(path):
@@ -82,6 +85,7 @@ class Relay:
         self.token = secrets.token_urlsafe(32)
         self.calls = []
         self.rejections = []
+        self.blocked_startup_probes = []
         self.ready = False
         self.response = None
         owner = self
@@ -103,11 +107,18 @@ class Relay:
                 self.wfile.write(data)
 
             def reject(self, reason):
-                owner.rejections.append(reason)
+                owner.rejections.append({'reason': reason, 'method': self.command,
+                                         'path': self.path.split('?', 1)[0][:160]})
                 self.reply(403, {'error': {'message': 'Gurukul relay: ' + reason,
                                          'type': 'permission_error', 'code': 'relay_denied'}})
 
             def do_GET(self):
+                if (not owner.ready and self.path in STARTUP_PROBE_PATHS and
+                        self.headers.get('Authorization') == 'Bearer ' + owner.token):
+                    owner.blocked_startup_probes.append({'method': 'GET', 'path': self.path,
+                                                        'status': 403, 'forwarded': False})
+                    return self.reply(403, {'error': {'message': 'Local backend discovery is disabled',
+                                                     'type': 'permission_error', 'code': 'probe_denied'}})
                 if self.path == '/health' and self.headers.get('Authorization') == 'Bearer ' + owner.token:
                     self.reply(200, {'status': 'ready', 'inference_calls': len(owner.calls)})
                 else:
@@ -117,6 +128,8 @@ class Relay:
                 if self.headers.get('Authorization') != 'Bearer ' + owner.token:
                     return self.reject('authentication failed')
                 if self.path == '/ready':
+                    if owner.rejections:
+                        return self.reject('prior policy violation prevents turn admission')
                     owner.ready = True
                     return self.reply(200, {'status': 'ready'})
                 if self.path != '/v1/chat/completions' or not owner.ready:
