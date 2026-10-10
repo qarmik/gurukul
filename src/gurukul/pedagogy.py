@@ -11,7 +11,7 @@ KINDS = {'ANSWER', 'QUESTION', 'CONFUSION', 'META_QUESTION', 'REQUEST_FOR_EXPLAN
 CONCEPTS = {'names_values', 'literals_quotes', 'reassignment', 'variable_use'}
 STRATEGIES = {'explanation', 'analogy', 'verbal_model', 'miniature_example', 'prediction', 'counterexample', 'comparison', 'learner_example', 'variation', 'clarification', 'defer'}
 PROVENANCE = {'approved_source', 'model_general_knowledge', 'canonical_curriculum', 'verified_external_source', 'deterministic_result', 'learner_evidence'}
-POLICY_VERSION = 'd01-pedagogy-5-response-routing'
+POLICY_VERSION = 'd01-pedagogy-6-conversation-state'
 
 SYSTEM_PROMPT = '''You are Guru, teaching a beginner. The curriculum defines WHAT is unlocked;
 use accurate general Python knowledge to explain HOW within that boundary. The book is
@@ -64,6 +64,14 @@ simpler or equivalent check. Preserve the unresolved evidence need. Never treat 
 Clarification of wording is not confusion. Acknowledge it without diagnosing a misconception.
 intent_responses: object with clarification, question, confusion (short direct responses to
 those intents, empty if absent). These will be displayed; do not duplicate them in explanation.
+Respond naturally in the main explanation; intent_responses are optional supplementary text,
+not a requirement to repeat yourself in several fields. An empty supplementary field must not
+mean ignoring the intent. Never treat a learner confirming what a question means as answering it.
+Conversation repair (asking what you mean, where a question came from, or objecting to repetition)
+is not conceptual failure. Answer the concern first, use next_activity pause and an empty
+diagnostic_question when appropriate. An unresolved evidence question remains saved; do not
+repeat it until it helps learning. Recovery notices in history are runtime notices, not successful
+teaching. A repeated strategy label is acceptable when the actual explanation changes.
 Evaluate the answer when present AND respond to secondary intents. If there is no answer,
 use not_applicable and preserve the unresolved evidence need. No semantic label grants mastery.
 concept: names_values literals_quotes reassignment variable_use;

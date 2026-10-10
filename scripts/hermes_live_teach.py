@@ -146,7 +146,10 @@ def run_locked(args):
         previous = load_previous(PROJECT / 'var/hermes-live', args.continue_call, manifest, config, exercise)
         if getattr(args, 'displayed_call', None) != args.continue_call:
             print('Guru: ' + previous['teaching']['explanation'])
-            print('Question: ' + previous['teaching']['diagnostic_question'])
+            if previous['teaching']['diagnostic_question']:
+                print('Question: ' + previous['teaching']['diagnostic_question'])
+            else:
+                print('The learning question is saved. Ask a follow-up or continue when ready.')
         prompt, continuation = read_answer(previous)
         excerpt, provenance = previous['excerpt'], previous['provenance']
     else:

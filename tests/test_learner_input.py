@@ -66,7 +66,8 @@ class LearnerInputTests(unittest.TestCase):
             self.assertEqual('',admission['intents']['answer_span'])
             self.assertNotIn('answer_span',admission['learner_verified_spans'])
             self.assertIn('Interpretation reference rejected',admission['reason'])
-            self.assertEqual(QUESTION,shown['diagnostic_question'])
+            self.assertEqual('',shown['diagnostic_question'])
+            self.assertEqual(QUESTION,admission['unresolved_evidence_question'])
 
     def test_code_like_prediction_admitted_without_requiring_prose(self):
         text='Birch = 10; alias = Birch; print(alias); alias = "Birch"; print(alias) -- output -- 10; Birch'

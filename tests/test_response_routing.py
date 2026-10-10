@@ -48,7 +48,8 @@ class ResponseRoutingTests(unittest.TestCase):
         self.assertEqual('RESPONSE_REJECTED',admission['conversation_status'])
         self.assertEqual('not_applicable',admission['judgment'])
         self.assertFalse(admission['grants_mastery'])
-        self.assertEqual(QUESTION,shown['diagnostic_question'])
+        self.assertEqual('',shown['diagnostic_question'])
+        self.assertEqual(QUESTION,admission['unresolved_evidence_question'])
         # Same path used when a safe rejection is loaded after restart.
         self.assertEqual(r,validate_response(r,self.context(text),allow_safe_format=True))
 

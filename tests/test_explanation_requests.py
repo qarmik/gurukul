@@ -83,7 +83,8 @@ class ExplanationTests(unittest.TestCase):
         self.assertEqual('RESPONSE_REJECTED',admission['conversation_status'])
         self.assertEqual('not_applicable',admission['judgment'])
         self.assertNotIn('label =',shown['explanation'])
-        self.assertEqual(QUESTION,shown['diagnostic_question'])
+        self.assertEqual('',shown['diagnostic_question'])
+        self.assertEqual(QUESTION,admission['unresolved_evidence_question'])
         self.assertFalse(admission['grants_mastery'])
 
     def test_security_precedes_recoverable_format(self):
@@ -144,7 +145,7 @@ class ExplanationTests(unittest.TestCase):
             (directory/'teaching-response.json').write_text(final);(directory/'approved-excerpt.txt').write_text(excerpt)
             saved=load_previous(root,call,manifest,config,EXERCISE)
             self.assertEqual('not_applicable',saved['history'][0]['pedagogy']['judgment'])
-            self.assertEqual(QUESTION,saved['teaching']['diagnostic_question'])
+            self.assertEqual('',saved['teaching']['diagnostic_question'])
             self.assertEqual(QUESTION,saved['unresolved_evidence_question'])
 
 if __name__=='__main__':unittest.main()

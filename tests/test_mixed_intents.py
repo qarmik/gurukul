@@ -76,7 +76,8 @@ class MixedTests(unittest.TestCase):
         admission,shown=self.checked(proposal(question=question),question)
         self.assertEqual('not_applicable',admission['judgment'])
         self.assertFalse(admission['answer_admitted'])
-        self.assertEqual(QUESTION,shown['diagnostic_question'])
+        self.assertEqual(QUESTION,admission['unresolved_evidence_question'])
+        self.assertEqual(proposal(question=question)['diagnostic_question'],shown['diagnostic_question'])
 
     def test_pure_confusion_not_graded(self):
         message='I am confused'
@@ -103,9 +104,12 @@ class MixedTests(unittest.TestCase):
         for change in ('unbound','missing_reply'):
             r=proposal(answer,question=question)
             if change=='unbound':r['pedagogy']['intents']['answer_span']='Invented answer'
-            else:r['pedagogy']['intent_responses']['question']=''
+            else:
+                r['pedagogy']['intent_responses']['question']=''
+                r['explanation']='Python looks up the value associated with the name.'
             admission,_=self.checked(r,answer+' '+question)
-            self.assertEqual('NEEDS_CLARIFICATION',admission['conversation_status'])
+            self.assertEqual('NEEDS_CLARIFICATION' if change=='unbound' else 'CONTINUE',admission['conversation_status'])
+            if change=='missing_reply':self.assertTrue(admission['conversation_observations'])
 
     def test_recovery_keeps_session_open_and_waits_for_next_input(self):
         args=argparse.Namespace(continue_call='prior',runtime_root=Path('/tmp/runtime'),once=False,source=None,choose_source=False)
