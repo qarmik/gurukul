@@ -93,3 +93,11 @@ Curriculum requirements and progression stay under Gurukul authority. See
 [correction and live A–E acceptance](docs/GURU-004-pedagogy.md). **GURU-005 is blocked
 until live pedagogical acceptance passes.** Earlier one-turn/continuation passes
 remain integration evidence, not acceptance of this new teaching policy.
+
+## Mixed learner messages and status wording
+
+Teaching now preserves answer plus clarification/question/uncertainty within one
+utterance. Parent-side admission separates provisional model judgment from runtime
+success and mastery. Recoverable routing ambiguity reprompts without ending the
+session or retrying automatically. See [mixed-intent acceptance](docs/GURU-004-mixed-intents.md).
+Live acceptance remains pending; GURU-005 stays blocked.

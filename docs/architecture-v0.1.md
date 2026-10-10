@@ -64,3 +64,10 @@ Gurukul owns curriculum state, learner state, evidence and progression; Hermes o
 pedagogical reasoning within granted authority. The target is the professional
 transformation defined by the canonical curriculum, not exercise completion alone.
 Implementation and acceptance limits: [GURU-004 pedagogy](GURU-004-pedagogy.md).
+
+
+A learner utterance can contain multiple simultaneous intents. Gurukul preserves
+answer evidence alongside clarification, questions and uncertainty. Conversational
+interpretation, runtime success and mastery are distinct states. Safe routing ambiguity
+may reprompt without terminating; authority, evidence and isolation failures remain
+fail-closed. See [mixed-intent policy](GURU-004-mixed-intents.md).

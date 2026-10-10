@@ -17,6 +17,7 @@ from uuid import uuid4
 PROJECT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT / 'src'))
 from gurukul.hermes_relay import Relay, private_key
+from gurukul.intent_admission import admit, runtime_notice
 from gurukul.pedagogy import orientation, turn_context, build_prompt, validate_response
 from gurukul.hermes_continuation import load_previous, continuation_input
 from gurukul.hermes_teaching import SYSTEM_PROMPT, record_result, source_input, teaching_response
@@ -248,6 +249,10 @@ def run_locked(args):
                 if wire.get('finish_reason') != 'stop' or wire['message'].get('content') != final:
                     raise ValueError('Hermes final response differs from completed provider response')
                 teaching = validate_response(json.loads(final), context)
+                if 'intents' not in teaching['pedagogy']:
+                    raise ValueError('Live response missing mixed-intent schema')
+                admission, display = admit(teaching, context)
+                report.update(runtime_status='PASS', pedagogy_admission=admission, display_teaching=display)
                 report.update(status='PASS', teaching=teaching, response_sha256=hashlib.sha256(final.encode()).hexdigest())
                 (evidence / 'teaching-response.json').write_text(json.dumps(teaching, indent=2) + '\n')
             finally:
@@ -259,6 +264,7 @@ def run_locked(args):
     except (Exception, SystemExit, KeyboardInterrupt) as exc:
         report.update(status='BLOCKED', error_type=type(exc).__name__, error=str(exc)[:1000])
     finally:
+        report['runtime_status'] = report['status']
         report['finished_at'] = now()
         try:
             record_result(store, call_id, session['id'], report)
@@ -272,11 +278,15 @@ def run_locked(args):
         except Exception as exc:
             report.update(status='BLOCKED', ledger_error_type=type(exc).__name__)
         (evidence / 'report.json').write_text(json.dumps(report, indent=2) + '\n')
-    summary = {'status': report['status'], 'call_id': call_id, 'hermes_revision': PIN,
+    summary = {'runtime_status': report['status'],
+                      'conversation_status': report.get('pedagogy_admission',{}).get('conversation_status'),
+                      'conversational_judgment': report.get('pedagogy_admission',{}).get('judgment'),
+                      'mastery_granted': False,
+                      'pedagogy_admission': report.get('pedagogy_admission'), 'call_id': call_id, 'hermes_revision': PIN,
                       'root_call_id': report.get('root_call_id', call_id),
                       'parent_call_id': (report.get('continuation') or {}).get('parent_call_id'),
                       'curriculum_provenance': report.get('curriculum_provenance'),
-                      'pedagogy': report.get('teaching', {}).get('pedagogy'),
+                      'model_pedagogy_proposal': report.get('teaching', {}).get('pedagogy'),
                       'run_conversation_path': report.get('worker', {}).get('run_path'),
                       'boundary_before': report.get('worker', {}).get('boundary_before'),
                       'boundary_after': report.get('worker', {}).get('boundary_after'),
@@ -298,14 +308,19 @@ def run_locked(args):
     if args.once or args.verbose or report['status'] != 'PASS':
         print(json.dumps(summary, indent=2))
     else:
-        print('PASS — isolated turn saved; ledger verified. Call: ' + call_id)
+        print(runtime_notice(report) + ' Call: ' + call_id)
         print('Evidence: ' + str(evidence))
     if report['status'] == 'PASS':
-        print(report['teaching']['explanation'])
-        if report['teaching'].get('miniature_example'):
-            print('Separate miniature example:\n' + report['teaching']['miniature_example'])
-        if report['teaching']['diagnostic_question']:
-            print(report['teaching']['diagnostic_question'])
+        shown = report.get('display_teaching', report['teaching'])
+        judgment = report.get('pedagogy_admission',{}).get('judgment', 'not_applicable')
+        print('Conversational judgment: ' + judgment + '. Mastery: not assessed.')
+        print(shown['explanation'])
+        for reply in shown.get('pedagogy',{}).get('intent_responses',{}).values():
+            if reply: print(reply)
+        if shown.get('miniature_example'):
+            print('Separate miniature example:\n' + shown['miniature_example'])
+        if shown['diagnostic_question']:
+            print(shown['diagnostic_question'])
         else:
             print('Ask a follow-up, describe your confusion, or type /quit.')
     return report

@@ -30,6 +30,10 @@ The excerpt remains SHA-bound; the report additionally records canonical/map/ori
 hashes, policy version and exact turn context. Legacy turns remain resumable. Ancestor
 selection follows causation links, not unrelated branches or mere timestamp ordering.
 
+The exclusive routing described in the original v1 policy below is superseded by
+[mixed-intent remediation](GURU-004-mixed-intents.md). Legacy saved evidence remains
+readable; new live requests use d01-pedagogy-2-mixed.
+
 ## Teaching policy and evidence
 
 Stable D01 fundamentals can use model knowledge. Source-specific answers require the

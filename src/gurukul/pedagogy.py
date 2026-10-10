@@ -4,12 +4,13 @@ import hashlib
 import json
 import re
 from gurukul.store import canonical
+from gurukul.intent_admission import intent_hint, validate_intents
 
-KINDS = {'ANSWER', 'QUESTION', 'CONFUSION', 'META_QUESTION', 'REQUEST_FOR_EXPLANATION', 'HYPOTHESIS', 'ATTEMPT', 'QUIT'}
+KINDS = {'ANSWER', 'QUESTION', 'CONFUSION', 'META_QUESTION', 'REQUEST_FOR_EXPLANATION', 'HYPOTHESIS', 'ATTEMPT', 'QUIT', 'CLARIFICATION', 'UNCERTAINTY'}
 CONCEPTS = {'names_values', 'literals_quotes', 'reassignment', 'variable_use'}
 STRATEGIES = {'explanation', 'analogy', 'verbal_model', 'miniature_example', 'prediction', 'counterexample', 'comparison', 'learner_example', 'variation', 'clarification', 'defer'}
 PROVENANCE = {'approved_source', 'model_general_knowledge', 'canonical_curriculum', 'verified_external_source', 'deterministic_result', 'learner_evidence'}
-POLICY_VERSION = 'd01-pedagogy-1'
+POLICY_VERSION = 'd01-pedagogy-2-mixed'
 
 SYSTEM_PROMPT = '''You are Guru, teaching a beginner. The curriculum defines WHAT is unlocked;
 use accurate general Python knowledge to explain HOW within that boundary. The book is
@@ -35,9 +36,21 @@ and explicitly defer depth; do not teach its mechanism. No C0 architecture analo
 Return JSON with exactly: explanation (string, under 180 words), diagnostic_question (string,
 may be empty when resolving a direct question), miniature_example (string, empty if unused),
 and pedagogy (object). Pedagogy must have exactly:
-message_kind: one of ANSWER QUESTION CONFUSION META_QUESTION REQUEST_FOR_EXPLANATION HYPOTHESIS ATTEMPT;
+message_kind: one of ANSWER QUESTION CONFUSION META_QUESTION REQUEST_FOR_EXPLANATION HYPOTHESIS ATTEMPT CLARIFICATION UNCERTAINTY;
+intents: object with primary (ANSWER QUESTION CLARIFICATION CONFUSION META_QUESTION
+REQUEST_FOR_EXPLANATION HYPOTHESIS ATTEMPT UNCERTAINTY), secondary (list of other labels),
+answer_span, question_span, clarification_span, confusion_span, uncertainty_span, meta_span,
+hypothesis_span (each an exact short verbatim substring from the learner message, or empty).
+Use ANSWER primary for an answer mixed with clarification/question/uncertainty. Include all
+relevant secondary intents. Never invent an answer span for a pure question or pure confusion.
+An answer_span must be a declarative part answering the active question, not a quoted question.
+Clarification of wording is not confusion. Acknowledge it without diagnosing a misconception.
+intent_responses: object with clarification, question, confusion (short direct responses to
+those intents, empty if absent). These will be displayed; do not duplicate them in explanation.
+Evaluate the answer when present AND respond to secondary intents. If there is no answer,
+use not_applicable and preserve the unresolved evidence need. No semantic label grants mastery.
 concept: names_values literals_quotes reassignment variable_use;
-judgment: correct incorrect uncertain not_assessed (model teaching observation, not a gate);
+judgment: correct partial incorrect uncertain not_applicable (model teaching observation, not a gate);
 strategy: explanation analogy verbal_model miniature_example prediction counterexample comparison learner_example variation clarification defer;
 next_activity: explain predict learner_example variation clarify pause;
 evidence_need: short concrete description of what is unresolved, not generic 'check understanding';
@@ -126,7 +139,7 @@ def turn_context(orientation_data, previous, message, history):
     if re.search(r'\b(curriculum|must i|requirement|gate|pass critical)\b', lower): knowledge_task = 'curriculum_requirement'
     if re.search(r'\b(latest|current version|python 3\.\d+)\b', lower): knowledge_task = 'version_sensitive'
     if re.search(r'\b(regulation|regulatory|law|legal|rbi policy)\b', lower): knowledge_task = 'regulatory'
-    policy = {'knowledge_task_hint': knowledge_task, 'message_kind_hint': kind, 'hint_origin': 'parent_heuristic',
+    policy = {'knowledge_task_hint': knowledge_task, 'message_kind_hint': kind, 'hint_origin': 'parent_heuristic', 'mixed_intent_hint': intent_hint(message),
               'model_observation_counts_not_mastery': counts,
               'saturated_concepts': [c for c,n in counts.items() if n >= 2],
               'previous_strategy': prior.get('strategy'),
@@ -151,7 +164,9 @@ def validate_response(result, context=None):
     for key in ('explanation','diagnostic_question','miniature_example'):
         if not isinstance(result[key],str) or len(result[key]) > 2500: raise ValueError('Invalid teaching text')
     if not result['explanation'].strip() or len(result['explanation'].split()) > 180: raise ValueError('Missing or oversized explanation')
-    prose = result['explanation']+' '+result['diagnostic_question']
+    extra = result.get('pedagogy',{}).get('intent_responses',{})
+    if not isinstance(extra,dict) or any(not isinstance(v,str) for v in extra.values()): raise ValueError('Malformed intent responses')
+    prose = result['explanation']+' '+result['diagnostic_question']+' '+' '.join(extra.values())
     if '```' in prose or re.search(r'\bprint\s*\(|\b[A-Za-z_]\w*\s*=(?!=)',prose):
         raise ValueError('Code must be a bounded separate miniature example')
     example = result['miniature_example']
@@ -168,8 +183,11 @@ def validate_response(result, context=None):
         if assigns > 1: raise ValueError('No cumulative solution construction')
     p=result['pedagogy']
     keys={'message_kind','concept','judgment','strategy','next_activity','evidence_need','knowledge_classes','claim_basis','source_specific','future_topic_deferred','current_location','curriculum_version','current_purpose','final_trajectory','grants_mastery','curriculum_observation'}
+    if isinstance(p,dict) and 'intents' in p:
+        keys |= {'intents','intent_responses'}
+        validate_intents(p)
     if not isinstance(p,dict) or set(p)!=keys: raise ValueError('Pedagogical diagnostics schema mismatch')
-    for key,allowed in [('message_kind',KINDS-{'QUIT'}),('concept',CONCEPTS),('judgment',{'correct','incorrect','uncertain','not_assessed'}),('strategy',STRATEGIES),('next_activity',{'explain','predict','learner_example','variation','clarify','pause'})]:
+    for key,allowed in [('message_kind',KINDS-{'QUIT'}),('concept',CONCEPTS),('judgment',{'correct','partial','incorrect','uncertain','not_assessed','not_applicable'}),('strategy',STRATEGIES),('next_activity',{'explain','predict','learner_example','variation','clarify','pause'})]:
         if not isinstance(p[key],str) or p[key] not in allowed: raise ValueError('Invalid '+key)
     for key in ('evidence_need','claim_basis','curriculum_observation'):
         if not isinstance(p[key],str) or len(p[key])>800: raise ValueError('Invalid diagnostic text')
@@ -192,14 +210,14 @@ def validate_response(result, context=None):
             raise ValueError('Requirements must be attributed to canonical curriculum')
         if task in {'version_sensitive','regulatory'} and p['strategy']!='defer':
             raise ValueError('Current authoritative source unavailable; defer claim')
-        if kind in {'QUESTION','META_QUESTION','CONFUSION','REQUEST_FOR_EXPLANATION'}:
+        if 'intents' not in p and kind in {'QUESTION','META_QUESTION','CONFUSION','REQUEST_FOR_EXPLANATION'}:
             if p['message_kind']!=kind or p['judgment']!='not_assessed': raise ValueError('Direct question/confusion must not be graded as an answer')
-        if kind=='CONFUSION' and p['strategy']==policy['previous_strategy']: raise ValueError('Confusion requires a different explanation strategy')
+        if 'intents' not in p and kind=='CONFUSION' and p['strategy']==policy['previous_strategy']: raise ValueError('Confusion requires a different explanation strategy')
         count=policy['model_observation_counts_not_mastery'][p['concept']]+(p['judgment']=='correct')
-        if kind in {'ANSWER','ATTEMPT','HYPOTHESIS'} and count>=2 and p['next_activity'] not in {'predict','learner_example','variation'}:
+        if 'intents' not in p and kind in {'ANSWER','ATTEMPT','HYPOTHESIS'} and count>=2 and p['next_activity'] not in {'predict','learner_example','variation'}:
             raise ValueError('Saturated concept requires a more demanding activity')
         prior=[x.get('question','').strip().casefold() for x in context['C_turn']['recent_exchanges']]
-        if result['diagnostic_question'].strip() and result['diagnostic_question'].strip().casefold() in prior:
+        if 'intents' not in p and result['diagnostic_question'].strip() and result['diagnostic_question'].strip().casefold() in prior:
             raise ValueError('Repeated exact question refused')
     # Guard obvious leaks; semantic scope still requires live review, not keyword certification.
     if re.search(r'\b(agent|governance|formal method|inference economic|LEGB|AST|enterprise architect)',prose,re.I) and not p['future_topic_deferred']:
