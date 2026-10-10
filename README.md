@@ -113,3 +113,17 @@ GURU-004 evidence-integrity remediation: learner input is parent-owned, hashed a
 separate from model interpretation; verified references replace retyped evidence.
 [Implementation, limitations and Mac acceptance](docs/GURU-004-input-integrity.md).
 Live completion remains pending; GURU-005 is blocked.
+
+## GURU-004M pedagogical supervisor
+
+A separate Anthropic/Claude supervisor can select a small approved teaching profile
+when a trajectory loops, recovers repeatedly or needs orientation. Healthy turns
+and a single explanation request add no supervisor generation. Gurukul applies
+the profile; mastery, curriculum, input, disclosure and isolation remain immutable.
+Retiring a repeated question leaves its evidence requirement unresolved.
+
+This is opt-in through `--maharishi` after dedicated local account/key setup. It
+retains the actual pinned Hermes/GPT-6 Luna path and adds a separate bounded
+supervisor request only when triggered. See [architecture/contract](docs/GURU-004M.md)
+and [exact Mac setup and live acceptance](docs/GURU-004M-Mac.md). Live acceptance
+remains pending; GURU-005 is blocked.

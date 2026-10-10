@@ -87,6 +87,7 @@ def admit(result, context):
     labels={intents['primary'],*intents['secondary']}; spans=intents
     prior=context['C_turn'].get('previous_teaching') or {}
     active_question=prior.get('diagnostic_question','') or context['C_turn'].get('unresolved_evidence_question','')
+    controls=context.get('pedagogical_control',{}).get('controls',{})
     reason=None
     observations=[]
     for field,kind in SPANS.items():
@@ -101,10 +102,10 @@ def admit(result, context):
         observations.append('Proposed answer intent was not admitted; no independent answer content')
     if answer and 'ANSWER' not in labels:reason='Answer span has no answer intent'
     if p['judgment'] not in {'not_applicable','not_assessed'} and not eligible:reason='No independently admissible answer span'
-    if eligible and p['judgment'] in {'not_applicable','not_assessed'}:reason='Answer content requires an explicit conversational judgment'
+    if eligible and not controls.get('suppress_grading') and p['judgment'] in {'not_applicable','not_assessed'}:reason='Answer content requires an explicit conversational judgment'
     hint=intent_hint(message)
     requested=hint['requested_strategy']
-    if requested:
+    if requested and not controls.get('strategy_flexible'):
         if 'REQUEST_FOR_EXPLANATION' not in labels or not spans.get('explanation_span'):
             reason='Explanation request needs explicit routing'
         compatible={requested}

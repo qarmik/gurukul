@@ -24,6 +24,8 @@ from gurukul.pedagogy import orientation, turn_context, build_prompt, validate_r
 from gurukul.hermes_continuation import load_previous, continuation_input
 from gurukul.hermes_teaching import SYSTEM_PROMPT, record_result, source_input, teaching_response
 from gurukul.store import Store, canonical, now
+from gurukul.anthropic_supervisor import configured_provider
+from gurukul.maharishi import carried_state, snapshot, supervise, control_context, apply_control
 from hermes_import_probe import PIN, installed_runtime
 
 MARKER = 'GURUKUL_LIVE_JSON='
@@ -85,7 +87,10 @@ def conversation_loop(args, turn):
     latest = args.continue_call
     current.displayed_call = None
     print('Gurukul teaching session. Answer at the Gurukul prompt; /quit or Control-C ends it.')
-    print('Each submitted answer makes at most one paid request. No automatic retries.')
+    if getattr(args,'maharishi',False):
+        print('Each message permits one Guru request and, when triggered, one supervisor request. No automatic retries.')
+    else:
+        print('Each submitted answer makes at most one paid request. No automatic retries.')
     try:
         while True:
             report = turn(current)
@@ -112,6 +117,7 @@ def conversation_loop(args, turn):
         if latest:
             command = ['python3', 'scripts/hermes_live_teach.py', '--runtime-root',
                        str(args.runtime_root), '--continue', latest]
+            if getattr(args,'maharishi',False):command.append('--maharishi')
             print('Resume the last successful question with:\n' + shlex.join(command))
 
 
@@ -133,6 +139,7 @@ def run_locked(args):
     python, venv, base, paths = installed_runtime(runtime)
     key_path = runtime / 'credentials/openai-api-key'
     private_key(key_path)  # Validate locally; never print or forward this secret to Hermes.
+    supervisor = configured_provider(runtime) if getattr(args,'maharishi',False) else None
     local_source = args.source
     if args.choose_source:
         selected = subprocess.check_output(['/usr/bin/osascript', '-e',
@@ -144,6 +151,8 @@ def run_locked(args):
     continuation = None
     if args.continue_call:
         previous = load_previous(PROJECT / 'var/hermes-live', args.continue_call, manifest, config, exercise)
+        if previous.get('supervision_state') and supervisor is None:
+            raise ValueError('This continuation has active supervision; resume with --maharishi')
         if getattr(args, 'displayed_call', None) != args.continue_call:
             print('Guru: ' + previous['teaching']['explanation'])
             if previous['teaching']['diagnostic_question']:
@@ -193,7 +202,19 @@ def run_locked(args):
         report.update(root_call_id=previous['root_call_id'], continuation=continuation,
                       scope='live_teaching_continuation_only')
     (evidence / 'approved-excerpt.txt').write_text(excerpt)
+    supervisor_state = carried_state(previous, context['C_turn']['learner_message']) if supervisor else None
+    supervisor_audit = None
+    original_context = context
     try:
+        if supervisor:
+            view=snapshot(context,supervisor_state)
+            supervisor_state,supervisor_audit=supervise(view,supervisor_state,supervisor,store,session['id'],call_id,supervisor.config['max_requests_per_session'])
+            supervisor_audit.update(stage='before_guru',snapshot=view)
+            context=control_context(context,supervisor_state)
+            prompt=build_prompt(context,excerpt)
+            report.update(supervision=supervisor_audit,turn_context=context)
+            baseline=hashlib.sha256(ledger.read_bytes()).hexdigest()
+
         with tempfile.TemporaryDirectory(prefix='teaching-worker-', dir=runtime) as tmp, \
              socket.socket() as denied_listener, Relay(config, key_path, prompt) as relay:
             work = Path(tmp).resolve()
@@ -215,11 +236,14 @@ def run_locked(args):
             script = work / 'worker.py'
             shutil.copyfile(PROJECT / 'scripts/hermes_worker.py', script)
             profile = sandbox_profile(work, source, python, venv, base, paths, state, relay.port, Path.home().resolve())
+            if supervisor:
+                profile += '\n(deny file-read* file-write* (literal '+json.dumps(str(supervisor.key_path))+'))'
             (evidence / 'sandbox.sb').write_text(profile)
             child_config = dict(config, source=str(source), revision=PIN, ledger=str(ledger),
                                 canary=str(canary), credential_path=str(key_path), denied_port=denied_port,
                                 relay_port=relay.port, relay_token=relay.token, base_url=base_url,
                                 call_id=call_id, prompt=prompt, system_prompt=SYSTEM_PROMPT)
+            if supervisor:child_config['supervisor_credential_path']=str(supervisor.key_path)
             env = {'HOME': str(home), 'HERMES_HOME': str(home),
                    'HERMES_RUNTIME_DIR': str(runtime / 'hermes-tools'),
                    'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'PYTHONNOUSERSITE': '1',
@@ -255,6 +279,15 @@ def run_locked(args):
                     raise ValueError('Hermes final response differs from completed provider response')
                 teaching = json.loads(final)
                 admission, display = evaluate_output(teaching, context)
+                if supervisor:
+                    if supervisor_audit['status']=='NOT_INVOKED' and supervisor_state['remaining_turns']==0:
+                        view=snapshot(original_context,supervisor_state,teaching,admission)
+                        supervisor_state,supervisor_audit=supervise(view,supervisor_state,supervisor,store,session['id'],call_id,supervisor.config['max_requests_per_session'])
+                        supervisor_audit.update(stage='after_guru',snapshot=view)
+                    admission,display,supervisor_state,compliance=apply_control(admission,display,supervisor_state,context)
+                    supervisor_audit.update(compliance=compliance,resulting_evidence_yield=admission['answer_admitted'],
+                                           state_after=supervisor_state,mastery_changed=False,curriculum_changed=False,security_changed=False)
+                    report.update(supervision=supervisor_audit,supervision_state=supervisor_state)
                 report.update(runtime_status='PASS', pedagogy_admission=admission, display_teaching=display)
                 report.update(status='PASS', teaching=teaching, response_sha256=hashlib.sha256(final.encode()).hexdigest())
                 (evidence / 'teaching-response.json').write_text(json.dumps(teaching, indent=2) + '\n')
@@ -289,6 +322,7 @@ def run_locked(args):
                       'root_call_id': report.get('root_call_id', call_id),
                       'parent_call_id': (report.get('continuation') or {}).get('parent_call_id'),
                       'curriculum_provenance': report.get('curriculum_provenance'),
+                      'supervision': report.get('supervision'),
                       'model_pedagogy_proposal': report.get('teaching', {}).get('pedagogy'),
                       'run_conversation_path': report.get('worker', {}).get('run_path'),
                       'boundary_before': report.get('worker', {}).get('boundary_before'),
@@ -332,6 +366,7 @@ def run_locked(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--once', action='store_true', help='Run one turn and exit (diagnostic mode)')
+    parser.add_argument('--maharishi',action='store_true',help='Enable account-verified, trigger-driven Anthropic supervision')
     parser.add_argument('--verbose', action='store_true', help='Print full verification JSON after each turn')
     parser.add_argument('--runtime-root', type=Path, default=Path.home() / 'GurukulRuntime')
     group = parser.add_mutually_exclusive_group(required=True)

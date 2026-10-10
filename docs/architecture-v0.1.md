@@ -1,6 +1,8 @@
 # Gurukul v0.1 — corrected architecture
 
-Status: corrections accepted; GURU-001 implemented. Remaining sprint increments are not implemented.
+Status: historical v0.1 baseline with subsequent amendments below. GURU-001–003
+passed Mac verification. GURU-004/004M integrated live pedagogy acceptance remains
+pending; GURU-005 is blocked.
 
 ## Authority and processes
 One local Python runtime owns SQLite, versioned exercises, evidence and progression. Learner execution will be a child process. Hermes means the actual NousResearch/hermes-agent runtime, never a generic endpoint renamed Hermes. The intended integration is a separate local Hermes worker behind a typed adapter. The worker will embed the upstream AIAgent API in its supported environment; pin and verify an upstream revision at GURU-004 before implementing the binding. Upstream reference: https://hermes-agent.nousresearch.com/docs/guides/python-library/ . No Hermes installation or live call is included in GURU-001.
@@ -82,11 +84,24 @@ while a verbal requirement remains unresolved. No conversation grants mastery.
 See [input integrity remediation](GURU-004-input-integrity.md).
 
 Long-range design memory: Gurukul is the sovereign runtime, Guru teaches the current
-step with awareness of the whole journey, and a future independent Maharishi may
-observe and recommend without changing permissions, curriculum or production code.
+step with awareness of the whole journey. GURU-004M implements a bounded independent
+Maharishi pedagogical supervisor; later institutional roles remain deferred. It may
+select approved teaching profiles without changing permissions, curriculum or production code.
 Industry context informs teaching but cannot rewrite the canonical curriculum.
 A future versioned charter, governed human-approved improvement/release process and
 external audit airlock must preserve those distinctions. The intended workspace,
 voice/files/images, desktop awareness, interventions, mobile capability leases and
 HeyClicky remain deferred. Local-first privacy and sensitive-work exclusion apply
 throughout. Remember the whole institution; build only the next necessary organ.
+
+## GURU-004M control coordination
+
+Guru teaches. Maharishi watches the teaching. Gurukul governs both. Hard
+constitutional harnesses cannot be loosened by either agent; approved adaptive
+teaching controls can temporarily pause evidence collection, retire a repeated
+question or request orientation/remediation. Retiring a question never satisfies
+the underlying evidence requirement. Normal turns retain one Guru; a separate,
+tool-free Anthropic call is event-triggered and independently budgeted. Maharishi
+selects a small typed profile, never an arbitrary prompt or permission change.
+See [contract, authority and audit](GURU-004M.md). Integrated live acceptance is
+pending; GURU-005 remains blocked.

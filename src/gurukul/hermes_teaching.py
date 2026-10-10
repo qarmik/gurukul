@@ -74,6 +74,15 @@ def record_result(store, call_id, session_id, result):
         if not session or session['status'] != 'active' or session['phase'] not in ('teaching', 'remediation'):
             raise ValueError('Tutoring is not admitted in this session phase')
         timestamp = now()
+        if result.get('supervision'):
+            audit=result['supervision']
+            event_type='supervision.decision_recorded' if audit.get('status')!='NOT_INVOKED' else 'supervision.observed'
+            store.db.execute('''INSERT INTO events(event_id,event_type,schema_version,
+                occurred_at,recorded_at,source,subject_id,session_id,correlation_id,
+                causation_id,idempotency_key,privacy_class,payload_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+                (str(uuid4()),event_type,1,timestamp,timestamp,'gurukul.maharishi_adapter',call_id,
+                 session_id,result.get('root_call_id',call_id),(result.get('continuation') or {}).get('parent_event_id'),
+                 event_type+':'+call_id,'personal_learning',canonical(audit)))
         store.db.execute('''INSERT INTO events(event_id,event_type,schema_version,
             occurred_at,recorded_at,source,subject_id,session_id,correlation_id,
             causation_id,idempotency_key,privacy_class,payload_json)

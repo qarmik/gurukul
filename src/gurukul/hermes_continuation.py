@@ -88,6 +88,7 @@ def load_previous(root, call_id, manifest, config, exercise):
                             'question': teaching_item.get('diagnostic_question'),
                             'miniature_example': teaching_item.get('miniature_example', ''),
                             'pedagogy': admitted_pedagogy,
+                            'supervision': {k:payload.get('supervision',{}).get(k) for k in ('status','directive','fallback')},
                             'pedagogy_admission': payload.get('pedagogy_admission')})
             parent_id = cursor['causation_id']
             cursor = db.execute('SELECT * FROM events WHERE event_id=?', (parent_id,)).fetchone() if parent_id else None
@@ -124,6 +125,7 @@ def load_previous(root, call_id, manifest, config, exercise):
     return {'teaching': shown, 'history': history, 'excerpt': excerpt, 'provenance': expected,
             'ledger': ledger, 'session_id': session['id'], 'root_call_id': root_id,
             'unresolved_evidence_question': report.get('pedagogy_admission', {}).get('unresolved_evidence_question') or report.get('pedagogy_admission', {}).get('pending_question', ''),
+            'supervision_state': report.get('supervision_state'),
             'parent_call_id': call_id, 'parent_event_id': event['event_id'],
             'parent_report_sha256': digest(canonical(recorded))}
 

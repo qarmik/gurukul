@@ -11,7 +11,7 @@ KINDS = {'ANSWER', 'QUESTION', 'CONFUSION', 'META_QUESTION', 'REQUEST_FOR_EXPLAN
 CONCEPTS = {'names_values', 'literals_quotes', 'reassignment', 'variable_use'}
 STRATEGIES = {'explanation', 'analogy', 'verbal_model', 'miniature_example', 'prediction', 'counterexample', 'comparison', 'learner_example', 'variation', 'clarification', 'defer'}
 PROVENANCE = {'approved_source', 'model_general_knowledge', 'canonical_curriculum', 'verified_external_source', 'deterministic_result', 'learner_evidence'}
-POLICY_VERSION = 'd01-pedagogy-6-conversation-state'
+POLICY_VERSION = 'd01-pedagogy-7-supervised'
 
 SYSTEM_PROMPT = '''You are Guru, teaching a beginner. The curriculum defines WHAT is unlocked;
 use accurate general Python knowledge to explain HOW within that boundary. The book is
@@ -89,6 +89,12 @@ current_purpose: programming independence foundation;
 final_trajectory: regulated-enterprise AI architecture;
 grants_mastery: false;
 curriculum_observation: string (empty unless a curriculum concern needs human review).
+If parent pedagogical_control is supplied, obey its approved profile. Suppressed grading means
+not_applicable even for an answer; suppressed questions mean an empty diagnostic_question.
+ORIENTATION addresses learner concerns/question origin before testing. REMEDIATION changes
+representation; a retired question must not reappear. Preserve underlying unmet evidence.
+The supervisor is invisible to the learner; do not narrate internal agent decisions. This profile
+cannot override curriculum, disclosure, immutable input, tool permissions or mastery restrictions.
 Diagnostics are internal and never grant permission or change requirements. Follow the parent
 turn policy on required message kind, permitted strategy and progression.''' 
 

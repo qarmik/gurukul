@@ -1,0 +1,30 @@
+{
+  "policy_version": "maharishi-pedagogy-v1",
+  "provider": "anthropic_direct",
+  "candidate_model": "claude-sonnet-5-5",
+  "public_interface_verified_at": "2026-10-10",
+  "account_access": "requires_local_setup_verification",
+  "api_version": "2023-06-01",
+  "thinking": "between_tools",
+  "max_output_tokens": 512,
+  "max_snapshot_bytes": 20000,
+  "max_requests_per_episode": 1,
+  "max_requests_per_session": 4,
+  "automatic_retry": false,
+  "tools": [],
+  "pricing": {
+    "model": "claude-sonnet-5-5",
+    "input_usd_per_million": 2,
+    "output_usd_per_million": 10,
+    "source": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "checked_at": "2026-10-10"
+  },
+  "sources": [
+    "https://platform.claude.com/docs/en/models/sonnet-5-5/overview",
+    "https://platform.claude.com/docs/en/api/messages/create",
+    "https://platform.claude.com/docs/en/api/models/list",
+    "https://platform.claude.com/docs/en/api/models/retrieve",
+    "https://platform.claude.com/docs/en/build-with-claude/thinking",
+    "https://platform.claude.com/docs/en/about-claude/models/model-ids-and-versions"
+  ]
+}

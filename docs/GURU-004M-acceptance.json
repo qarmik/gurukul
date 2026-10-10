@@ -1,0 +1,20 @@
+{
+  "increment": "GURU-004M v0.1",
+  "disposition": "IMPLEMENTED_OFFLINE_VERIFIED_LIVE_PENDING",
+  "canonical_curriculum": "0.8.3",
+  "hermes_revision": "cc75e8f4021f7efab99158f57601be4d691a6da9",
+  "guru_provider": "openai_direct",
+  "guru_model": "gpt-6-luna",
+  "supervisor_provider": "anthropic_direct",
+  "supervisor_candidate_model": "claude-sonnet-5-5",
+  "public_interface_checked_at": "2026-10-10",
+  "account_model_verified": false,
+  "offline_tests": {"new_supervisor_tests": 21, "suite_total": 164, "passed": 163, "skipped": 1, "reason": "macOS sandbox-exec unavailable in Linux"},
+  "actual_guru_supervisor_live_run": false,
+  "live_transcript": null,
+  "live_loop_break_verified": false,
+  "mastery_granted": false,
+  "curriculum_changed": false,
+  "security_authority_expanded": false,
+  "GURU-005": "BLOCKED"
+}

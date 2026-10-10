@@ -37,7 +37,7 @@ def boundary(config):
     def bind():
         with socket.socket() as connection:
             connection.bind(('127.0.0.1', 0))
-    return {
+    result = {
         'ledger_read': denied(lambda: open_only(config['ledger'], os.O_RDONLY)),
         'ledger_write': denied(lambda: open_only(config['ledger'], os.O_WRONLY)),
         'ledger_create': denied(lambda: open_only(config['canary'], os.O_WRONLY | os.O_CREAT | os.O_EXCL)),
@@ -47,6 +47,9 @@ def boundary(config):
         'external_network': denied(lambda: connect(('192.0.2.1', 443))),
         'network_listen': denied(bind),
     }
+    if config.get('supervisor_credential_path'):
+        result['supervisor_credential_read']=denied(lambda: open_only(config['supervisor_credential_path'],os.O_RDONLY))
+    return result
 
 
 def surface(agent, config):
