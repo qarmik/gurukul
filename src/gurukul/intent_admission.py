@@ -10,7 +10,7 @@ SPANS = {'answer_span':'ANSWER','question_span':'QUESTION','clarification_span':
 
 def explanation_request(message):
     text=message.lower()
-    requested=bool(re.search(r"\b(explain|give me an? (analogy|example|small example)|show me|simpler|simplify|more simply|walk me through|compare it|don't understand.*explanation|do not understand.*explanation)\b",text))
+    requested=bool(re.search(r"\b(explain|give me (?:an?|some) (analogy|examples?|small examples?)|show me|simpler|simplify|more simply|walk me through|compare it|don't understand.*explanation|do not understand.*explanation)\b",text))
     if not requested:return None
     for pattern,strategy in [(r'analogy','analogy'),(r'counterexample','counterexample'),
                               (r'compar','comparison'),(r'example','miniature_example'),
@@ -103,8 +103,14 @@ def admit(result, context):
     if requested:
         if 'REQUEST_FOR_EXPLANATION' not in labels or not spans.get('explanation_span'):
             reason='Explanation request needs explicit routing'
-        if p['strategy']!=requested:
+        compatible={requested}
+        if requested=='explanation':compatible={'explanation','comparison','verbal_model'}
+        if p['strategy'] not in compatible:
             reason='Requested explanation strategy was not supplied'
+        if requested=='explanation' and (len(result['explanation'].split())>90 or result['explanation'].strip()==prior.get('explanation','').strip()):
+            reason='Simplification needs a concise changed explanation'
+        if requested=='miniature_example' and not result['miniature_example'].strip():
+            reason='Requested example was not supplied'
     if 'CLARIFICATION' in hint['possible_intents'] and not spans['clarification_span']:
         reason='Clarification needs acknowledgment rather than a confusion label'
     for field,reply in [('clarification_span','clarification'),('question_span','question'),('meta_span','question'),('confusion_span','confusion')]:

@@ -87,3 +87,46 @@ A transport PASS alone does not establish pedagogical acceptance. Simpler teachi
 a small example, normal answer admission and the complete live sequence are still
 pending; the earlier real analogy response is accepted and must not be relabelled
 as completion of the whole sequence.
+
+## Follow-up: explanation routing (policy version 5)
+
+Live Mac evidence verified all nine input-integrity tests and the analogy request's
+parent-constructed reference. Two additional response-contract defects prevented
+completion: a valid simpler comparison was rejected by exact strategy equality;
+a later proposal omitted `current_purpose` and `final_trajectory` and stopped the
+session. It also gave another analogy instead of an example.
+
+Simplification now admits explanation/comparison/verbal-model representations,
+with a concise (90-word) changed explanation. This is a surface guard, not proof
+of pedagogical quality; live review remains required. Explicit analogy requests
+still require that representation. Natural phrasing such as “give me some example”
+is now routed as an explanation request. A requested miniature example must
+actually be supplied and must pass the existing disclosure/AST restrictions.
+
+Omitting either of the two descriptive orientation acknowledgements is a safe
+format rejection only after all other checks pass. The response is not displayed,
+no fields are invented, no grade is recorded, and the pending question survives.
+Unknown fields, missing authority fields, false supplied orientation, unsafe code,
+and curriculum/mastery violations still fail hard. The raw proposal remains saved;
+no second provider request is spent. Recovery uses the existing saved/reloadable
+RESPONSE_REJECTED path.
+
+Five additional offline tests pass. Full regression: 137 run, 136 passed and the
+Mac-only sandbox test skipped on Linux. No isolation or model-budget changes.
+
+At the Mac shell, update and resume the saved recoverable turn:
+
+```sh
+cd /Users/qarmik/Documents/GitHub/gurukul
+git pull --ff-only
+git rev-parse --short HEAD
+PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_response_routing.py' -v &&
+python3 scripts/hermes_live_teach.py --verbose --continue f4c74088-f825-41e8-82c5-54fc4b2e0a2a
+```
+
+At successive Gurukul prompts, submit “explain it more simply”, then “give me some
+example”, then your own answer to the displayed question. Stop and share output
+if another rejection occurs. Otherwise `/quit` and use the input-audit command
+above for the final answer call. Analogy acceptance already passed; do not repeat
+it merely to consume another call. Final GURU-004 live acceptance is still pending,
+and GURU-005 remains blocked.

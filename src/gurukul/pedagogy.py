@@ -11,7 +11,7 @@ KINDS = {'ANSWER', 'QUESTION', 'CONFUSION', 'META_QUESTION', 'REQUEST_FOR_EXPLAN
 CONCEPTS = {'names_values', 'literals_quotes', 'reassignment', 'variable_use'}
 STRATEGIES = {'explanation', 'analogy', 'verbal_model', 'miniature_example', 'prediction', 'counterexample', 'comparison', 'learner_example', 'variation', 'clarification', 'defer'}
 PROVENANCE = {'approved_source', 'model_general_knowledge', 'canonical_curriculum', 'verified_external_source', 'deterministic_result', 'learner_evidence'}
-POLICY_VERSION = 'd01-pedagogy-4-authoritative-input'
+POLICY_VERSION = 'd01-pedagogy-5-response-routing'
 
 SYSTEM_PROMPT = '''You are Guru, teaching a beginner. The curriculum defines WHAT is unlocked;
 use accurate general Python knowledge to explain HOW within that boundary. The book is
@@ -53,7 +53,11 @@ relevant secondary intents. Never invent an answer span for a pure question or p
 An answer_span must be a declarative part answering the active question, not a quoted question.
 REQUEST_FOR_EXPLANATION is a control signal: no answer judgment unless a separate genuine
 answer exists. Follow requested_strategy in the parent hint: analogy, explanation,
-miniature_example, comparison, counterexample or verbal_model. Code is OPTIONAL; an analogy
+miniature_example, comparison, counterexample or verbal_model. A request to simplify may use
+a concise explanation, comparison or verbal_model; reduce complexity instead of repeating.
+An explicit small-example request needs an actual separate bounded miniature_example, not
+only a repeated analogy. Always include current_purpose and final_trajectory acknowledgements.
+Code is OPTIONAL; an analogy
 or prose comparison needs no code. For 'more simply' reduce complexity; do not repeat the
 same phrasing. Explain in a different representation when requested, then choose a smaller,
 simpler or equivalent check. Preserve the unresolved evidence need. Never treat no answer as wrong.
@@ -227,13 +231,17 @@ def validate_response(result, context=None, *, allow_safe_format=False):
     if isinstance(p,dict) and 'intents' in p:
         keys |= {'intents','intent_responses'}
         validate_intents(p)
-    if not isinstance(p,dict) or set(p)!=keys: raise ValueError('Pedagogical diagnostics schema mismatch')
+    optional_echoes={'current_purpose','final_trajectory'}
+    if not isinstance(p,dict) or set(p)-keys or (keys-set(p))-optional_echoes:
+        raise ValueError('Pedagogical diagnostics schema mismatch')
+    if keys-set(p):
+        format_reasons.append('Missing descriptive curriculum acknowledgements: '+', '.join(sorted(keys-set(p))))
     for key,allowed in [('message_kind',KINDS-{'QUIT'}),('concept',CONCEPTS),('judgment',{'correct','partial','incorrect','uncertain','not_assessed','not_applicable'}),('strategy',STRATEGIES),('next_activity',{'explain','predict','learner_example','variation','clarify','pause'})]:
         if not isinstance(p[key],str) or p[key] not in allowed: raise ValueError('Invalid '+key)
     for key in ('evidence_need','claim_basis','curriculum_observation'):
         if not isinstance(p[key],str) or len(p[key])>800: raise ValueError('Invalid diagnostic text')
     if not p['evidence_need'].strip() or not p['claim_basis'].strip(): raise ValueError('Missing evidence rationale')
-    if p['current_purpose'] != 'programming independence foundation' or p['final_trajectory'] != 'regulated-enterprise AI architecture':
+    if p.get('current_purpose','programming independence foundation') != 'programming independence foundation' or p.get('final_trajectory','regulated-enterprise AI architecture') != 'regulated-enterprise AI architecture':
         raise ValueError('Curriculum orientation acknowledgement mismatch')
     if p['current_location']!='C0-B01-D01' or p['curriculum_version']!='0.8.3' or p['grants_mastery'] is not False:
         raise ValueError('Curriculum or progression authority violation')
