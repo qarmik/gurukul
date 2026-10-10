@@ -12,9 +12,10 @@ def evaluate_output(proposal, context):
             raise ValueError('Live response missing mixed-intent schema')
         pending=(context['C_turn'].get('previous_teaching') or {}).get('diagnostic_question','')
         reason=str(exc)
-        admission={'conversation_status':'RESPONSE_REJECTED','judgment':'not_applicable',
+        bound,_=admit(proposal,context)
+        admission={**bound,'conversation_status':'RESPONSE_REJECTED','judgment':'not_applicable',
                    'answer_admitted':False,'grants_mastery':False,'reason':reason,
-                   'intents':proposal['pedagogy']['intents'],'pending_question':pending,
+                   'intents':bound['intents'],'pending_question':pending,
                    'unresolved_evidence_question':pending,
                    'requested_strategy':intent_hint(context['C_turn']['learner_message'])['requested_strategy']}
         shown={'explanation':'The Guru response did not satisfy the teaching-response policy. Your request has been preserved and was not graded. Please submit it again or ask another question. No automatic retry was made.',

@@ -7,6 +7,7 @@ from uuid import UUID
 
 from gurukul.hermes_teaching import teaching_response
 from gurukul.terminal_text import normalize_input
+from gurukul.learner_input import capture, verify, verify_admission
 from gurukul.store import canonical
 
 
@@ -67,9 +68,16 @@ def load_previous(root, call_id, manifest, config, exercise):
             visited.add(cursor['event_id'])
             payload = json.loads(cursor['payload_json'])
             if payload.get('status') != 'PASS': raise ValueError('History contains failed teaching turn')
+            continuation = payload.get('continuation', {})
+            if continuation.get('learner_input'):
+                if verify(continuation['learner_input']) != continuation['learner_answer']:
+                    raise ValueError('Learner input differs from semantic evidence')
+                if payload.get('pedagogy_admission') or 'pedagogy' in payload.get('teaching', {}):
+                    verify_admission(payload.get('pedagogy_admission', {}), continuation['learner_answer'])
             teaching_item = payload.get('display_teaching', payload.get('teaching', {}))
             admitted_pedagogy = dict(payload.get('teaching', {}).get('pedagogy', {}))
             if payload.get('pedagogy_admission'):
+                admitted_pedagogy['intents'] = payload['pedagogy_admission'].get('intents', {})
                 admitted_pedagogy['judgment'] = payload['pedagogy_admission']['judgment']
                 if payload['pedagogy_admission']['conversation_status'] in ('NEEDS_CLARIFICATION', 'RESPONSE_REJECTED'):
                     admitted_pedagogy['next_activity'] = 'clarify'
@@ -109,7 +117,7 @@ def load_previous(root, call_id, manifest, config, exercise):
         raise ValueError('Saved teaching response changed or corrupted')
     shown = dict(report.get('display_teaching', teaching))
     if report.get('pedagogy_admission'):
-        shown['pedagogy'] = dict(teaching.get('pedagogy', {}), judgment=report['pedagogy_admission']['judgment'])
+        shown['pedagogy'] = dict(teaching.get('pedagogy', {}), judgment=report['pedagogy_admission']['judgment'], intents=report['pedagogy_admission'].get('intents', {}))
         if report['pedagogy_admission']['conversation_status'] in ('NEEDS_CLARIFICATION', 'RESPONSE_REJECTED'):
             shown['pedagogy']['next_activity'] = 'clarify'
     return {'teaching': shown, 'history': history, 'excerpt': excerpt, 'provenance': expected,
@@ -120,10 +128,11 @@ def load_previous(root, call_id, manifest, config, exercise):
 
 
 def continuation_input(previous, answer):
+    learner_input = capture(answer)
     answer, input_hygiene = normalize_input(answer)
+    input_hygiene['raw_retained'] = True
     if not isinstance(answer, str) or not answer.strip() or len(answer.encode('utf-8')) > 4000:
         raise ValueError('Answer must contain 1–4,000 UTF-8 bytes')
-    answer = answer.strip()
     context = {'previous_explanation': previous['teaching']['explanation'],
                'question_answered': previous['teaching']['diagnostic_question'],
                'learner_answer': answer}
@@ -136,7 +145,7 @@ def continuation_input(previous, answer):
               'Use explanation for feedback and diagnostic_question for one next question. '
               'Only the previous turn is supplied; do not claim recall of older exchanges.\n\n'
               'EXCHANGE JSON:\n' + canonical(context) + '\n\nAPPROVED LOCAL D01 MATERIAL:\n' + previous['excerpt'])
-    evidence = {**context, 'input_hygiene': input_hygiene, 'answer_sha256': digest(answer),
+    evidence = {**context, 'learner_input': learner_input, 'input_hygiene': input_hygiene, 'answer_sha256': digest(answer),
                 'parent_call_id': previous['parent_call_id'], 'parent_event_id': previous['parent_event_id'],
                 'parent_report_sha256': previous['parent_report_sha256']}
     return prompt, evidence

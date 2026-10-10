@@ -1,5 +1,7 @@
 """Admit conversational observations, never mastery; recover semantic ambiguity."""
 import re
+from copy import deepcopy
+from gurukul.learner_input import resolve, digest
 
 INTENTS = {'ANSWER','QUESTION','CLARIFICATION','CONFUSION','META_QUESTION','REQUEST_FOR_EXPLANATION','HYPOTHESIS','ATTEMPT','UNCERTAINTY'}
 SPANS = {'answer_span':'ANSWER','question_span':'QUESTION','clarification_span':'CLARIFICATION',
@@ -8,11 +10,11 @@ SPANS = {'answer_span':'ANSWER','question_span':'QUESTION','clarification_span':
 
 def explanation_request(message):
     text=message.lower()
-    requested=bool(re.search(r"\b(explain|give me an? (analogy|example|small example)|show me|simpler|more simply|compare it|don't understand.*explanation|do not understand.*explanation)\b",text))
+    requested=bool(re.search(r"\b(explain|give me an? (analogy|example|small example)|show me|simpler|simplify|more simply|walk me through|compare it|don't understand.*explanation|do not understand.*explanation)\b",text))
     if not requested:return None
     for pattern,strategy in [(r'analogy','analogy'),(r'counterexample','counterexample'),
                               (r'compar','comparison'),(r'example','miniature_example'),
-                              (r'step.by.step','verbal_model'),(r'simpl|again|different|understand','explanation')]:
+                              (r'step.by.step|walk me through','verbal_model'),(r'simpl|again|different|understand','explanation')]:
         if re.search(pattern,text):return strategy
     return 'explanation'
 
@@ -58,7 +60,9 @@ def validate_intents(p):
     if len(set(value['secondary']))!=len(value['secondary']) or value['primary'] in value['secondary']:
         raise ValueError('Duplicate intents')
     for field in SPANS:
-        if not isinstance(value.get(field,''),str) or len(value.get(field,''))>800:raise ValueError('Invalid intent evidence span')
+        item=value.get(field,'')
+        if not ((isinstance(item,str) and len(item)<=4000) or (isinstance(item,dict) and set(item) in ({'ref'},{'start','end'}))):
+            raise ValueError('Invalid intent evidence span')
     responses=p['intent_responses']
     if not isinstance(responses,dict) or set(responses)!={'clarification','question','confusion'}:
         raise ValueError('Intent response schema mismatch')
@@ -67,7 +71,17 @@ def validate_intents(p):
 
 def admit(result, context):
     """Called only AFTER all structural/security/source/scope checks succeed."""
+    original=result
+    result=deepcopy(result)
     p=result['pedagogy']; intents=p['intents']; message=context['C_turn']['learner_message']
+    verified={}; reference_error=None
+    for field in SPANS:
+        try:
+            intents[field], binding=resolve(intents.get(field,''),message)
+            if binding: verified[field]=dict(binding,text=intents[field])
+        except ValueError as exc:
+            intents[field]=''
+            reference_error=str(exc)
     labels={intents['primary'],*intents['secondary']}; spans=intents
     prior=context['C_turn'].get('previous_teaching') or {}
     active_question=prior.get('diagnostic_question','')
@@ -79,7 +93,7 @@ def admit(result, context):
         if kind in labels and not spans.get(field,''):reason='Intent label lacks an exact evidence span'
     if '?' in message and not (spans['question_span'] or spans['meta_span']):reason='Learner question must be retained and answered'
     answer=spans['answer_span']
-    eligible=bool(active_question and answer and any(answer in segment for segment in candidate_answers(message)))
+    eligible=bool(active_question and answer and (any(answer in segment for segment in candidate_answers(message)) or (answer == message and candidate_answers(message) and '?' not in message and not explanation_request(message))))
     if 'ANSWER' in labels and not eligible:reason='Answer content is ambiguous or no active question exists'
     if answer and 'ANSWER' not in labels:reason='Answer span has no answer intent'
     if p['judgment'] not in {'not_applicable','not_assessed'} and not eligible:reason='No independently admissible answer span'
@@ -107,19 +121,24 @@ def admit(result, context):
     questions=[x.get('question','').strip().casefold() for x in context['C_turn']['recent_exchanges']]
     if eligible and result['diagnostic_question'].strip() and result['diagnostic_question'].strip().casefold() in questions:
         reason='Equivalent exact question needs replacement'
+    evidence={'learner_input_sha256':digest(message),'learner_verified_spans':verified,
+              'model_interpretation':deepcopy(original['pedagogy']['intents']),
+              'model_judgment_proposal':original['pedagogy']['judgment']}
+    if reference_error:
+        reason='Interpretation reference rejected: '+reference_error
     if reason:
-        display={'explanation':'I could not reliably separate or route that message. No correctness judgment was recorded. Please restate your answer and any follow-up separately, or ask your question directly.',
+        display={'explanation':'The Guru interpretation could not be verified or routed. Your original input is preserved; this is not a learner error. No correctness judgment was recorded. Please submit your answer or request again.',
                  'diagnostic_question':active_question,'miniature_example':''}
-        return {'conversation_status':'NEEDS_CLARIFICATION','judgment':'not_applicable','answer_admitted':False,
-                'reason':reason,'intents':intents,'pending_question':active_question,'grants_mastery':False},display
+        return {**evidence,'conversation_status':'NEEDS_CLARIFICATION','judgment':'not_applicable','answer_admitted':False,
+                'reason':reason,'intents':intents,'unresolved_evidence_question':active_question,'pending_question':active_question,'grants_mastery':False},display
     display=result if eligible or requested else dict(result,diagnostic_question=active_question or result['diagnostic_question'])
     if requested and not display['diagnostic_question']:
         display=dict(display,diagnostic_question=active_question)
-    return {'conversation_status':'CONTINUE','judgment':'not_applicable' if not eligible else p['judgment'],
+    return {**evidence,'conversation_status':'CONTINUE','judgment':'not_applicable' if not eligible else p['judgment'],
             'answer_admitted':eligible,'reason':'Exact learner span bound to active question; correctness remains a model observation',
             'intents':intents,'pending_question':display['diagnostic_question'],
             'unresolved_evidence_question':active_question if not eligible else '',
-            'requested_strategy':requested,'grants_mastery':False},display
+            'requested_strategy':requested,'unmet_evidence_requirement':p['evidence_need'],'grants_mastery':False},display
 
 
 def runtime_notice(report):

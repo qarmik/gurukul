@@ -71,3 +71,22 @@ answer evidence alongside clarification, questions and uncertainty. Conversation
 interpretation, runtime success and mastery are distinct states. Safe routing ambiguity
 may reprompt without terminating; authority, evidence and isolation failures remain
 fail-closed. See [mixed-intent policy](GURU-004-mixed-intents.md).
+
+## GURU-004 evidence integrity and deferred institutional direction
+
+Learner actions and words are evidence; model reconstruction is not evidence.
+Raw input, deterministic normalized input, model interpretation and Gurukul
+admission are separate layers. Verified spans are parent-constructed from input
+references. Conversational observations can preserve useful code-prediction evidence
+while a verbal requirement remains unresolved. No conversation grants mastery.
+See [input integrity remediation](GURU-004-input-integrity.md).
+
+Long-range design memory: Gurukul is the sovereign runtime, Guru teaches the current
+step with awareness of the whole journey, and a future independent Maharishi may
+observe and recommend without changing permissions, curriculum or production code.
+Industry context informs teaching but cannot rewrite the canonical curriculum.
+A future versioned charter, governed human-approved improvement/release process and
+external audit airlock must preserve those distinctions. The intended workspace,
+voice/files/images, desktop awareness, interventions, mobile capability leases and
+HeyClicky remain deferred. Local-first privacy and sensitive-work exclusion apply
+throughout. Remember the whole institution; build only the next necessary organ.

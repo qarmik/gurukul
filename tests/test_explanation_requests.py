@@ -36,7 +36,7 @@ class ExplanationTests(unittest.TestCase):
 
     def test_requests_are_not_answers(self):
         for text in ['explain with an analogy','explain again','explain differently','give me an analogy',
-                     'show me a simpler example',"I don't understand that explanation",'can you compare it to something?']:
+                     'show me a simpler example','simplify that','walk me through it',"I don't understand that explanation",'can you compare it to something?']:
             with self.subTest(text=text):
                 self.assertEqual('REQUEST_FOR_EXPLANATION',classify(text))
                 self.assertIn('REQUEST_FOR_EXPLANATION',intent_hint(text)['possible_intents'])

@@ -108,3 +108,8 @@ Explanation requests now select a teaching representation without grading the pe
 answer. Safe teaching-format rejection stays recoverable, and terminal controls are
 removed before semantic evidence is stored. See [explanation-request acceptance](docs/GURU-004-explanation-requests.md).
 GURU-005 remains blocked until the real live strategy checks pass.
+
+GURU-004 evidence-integrity remediation: learner input is parent-owned, hashed and
+separate from model interpretation; verified references replace retyped evidence.
+[Implementation, limitations and Mac acceptance](docs/GURU-004-input-integrity.md).
+Live completion remains pending; GURU-005 is blocked.

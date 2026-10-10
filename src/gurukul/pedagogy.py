@@ -4,13 +4,14 @@ import hashlib
 import json
 import re
 from gurukul.store import canonical
+from gurukul.learner_input import references
 from gurukul.intent_admission import intent_hint, validate_intents, explanation_request
 
 KINDS = {'ANSWER', 'QUESTION', 'CONFUSION', 'META_QUESTION', 'REQUEST_FOR_EXPLANATION', 'HYPOTHESIS', 'ATTEMPT', 'QUIT', 'CLARIFICATION', 'UNCERTAINTY'}
 CONCEPTS = {'names_values', 'literals_quotes', 'reassignment', 'variable_use'}
 STRATEGIES = {'explanation', 'analogy', 'verbal_model', 'miniature_example', 'prediction', 'counterexample', 'comparison', 'learner_example', 'variation', 'clarification', 'defer'}
 PROVENANCE = {'approved_source', 'model_general_knowledge', 'canonical_curriculum', 'verified_external_source', 'deterministic_result', 'learner_evidence'}
-POLICY_VERSION = 'd01-pedagogy-3-explanations'
+POLICY_VERSION = 'd01-pedagogy-4-authoritative-input'
 
 SYSTEM_PROMPT = '''You are Guru, teaching a beginner. The curriculum defines WHAT is unlocked;
 use accurate general Python knowledge to explain HOW within that boundary. The book is
@@ -40,7 +41,13 @@ message_kind: one of ANSWER QUESTION CONFUSION META_QUESTION REQUEST_FOR_EXPLANA
 intents: object with primary (ANSWER QUESTION CLARIFICATION CONFUSION META_QUESTION
 REQUEST_FOR_EXPLANATION HYPOTHESIS ATTEMPT UNCERTAINTY), secondary (list of other labels),
 answer_span, question_span, clarification_span, confusion_span, uncertainty_span, meta_span,
-hypothesis_span, explanation_span (each an exact short verbatim substring from the learner message, or empty).
+hypothesis_span, explanation_span: each is {"ref":"s0"} selecting a parent-supplied
+learner_input_references entry, or empty string if absent. Do NOT reproduce or correct learner
+text in these fields. For a narrower span use {"start":0,"end":5}, zero-based Unicode code-point
+indices with exclusive end, only when certain. Prefer supplied references. s0 is the entire input.
+Never infer typos from your own reconstruction. Code-like predictions are legitimate conceptual
+answers even when prose was requested. Retain that evidence; ask for an unmet verbal explanation
+separately in evidence_need and the next question. Such observations are never mastery.
 Use ANSWER primary for an answer mixed with clarification/question/uncertainty. Include all
 relevant secondary intents. Never invent an answer span for a pure question or pure confusion.
 An answer_span must be a declarative part answering the active question, not a quoted question.
@@ -152,7 +159,7 @@ def turn_context(orientation_data, previous, message, history):
               'previous_strategy': prior.get('strategy'),
               'rule': 'If current answer makes two correct observations for that concept, choose predict, learner_example or variation; do not ask another equivalent recall question.'}
     return {'orientation': orientation_data, 'C_turn': {'location':'C0-B01-D01', 'mode':'teaching_or_remediation',
-            'learner_message': message, 'unresolved_evidence_question': (previous or {}).get('unresolved_evidence_question',''), 'previous_teaching': (previous or {}).get('teaching'),
+            'learner_message': message, 'learner_input_references': references(message), 'unresolved_evidence_question': (previous or {}).get('unresolved_evidence_question',''), 'previous_teaching': (previous or {}).get('teaching'),
             'recent_exchanges': history, 'history_limit': 'At most 20 ancestor exchanges within 40KB; no complete recall claimed.',
             'hint_history': 'No explicit hint events in this integration harness; do not invent them.',
             'misconceptions': 'Infer only from supplied learner evidence; model judgments remain provisional.'}, 'turn_policy': policy}
