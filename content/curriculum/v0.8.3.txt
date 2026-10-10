@@ -1,0 +1,537 @@
+ENTERPRISE AI CONTROL-LAYER CURRICULUM v0.8.3 — FINAL
+
+Status: FINAL canonical accountability- and field-to-product-hardened specification
+Target role: Customer-facing architect who can enter an unfamiliar regulated enterprise, find the real problem, design an AI system that stays inside legitimate authority, prove the risky assumptions, and move stakeholders to safe adoption.
+Primary portfolio domain: synthetic governed retail-banking operations / retail-credit control plane.
+Execution unit: one 10-day book.
+Planning rule: effort is estimated in books, never calendar deadlines. Standards do not bend when a stage runs long.
+
+1. DESIGN PRINCIPLES
+
+Goal → Permission → Evidence → Power.
+- Goal — What outcome matters? What must not be sacrificed?
+- Permission — What may the system do? Under whose legitimate authority?
+- Evidence — What independently demonstrates what happened, what is true enough for the decision, and what survives later review?
+- Power — Who can stop, recover, restart, override and own the consequences?
+
+Authority before autonomy. No agent receives consequential permission until capability, failure, memory and coupling behavior are characterized.
+Enforcement outside the model. Safety-critical authority constraints are enforced structurally/deterministically, not by prompts or agent cooperation.
+Evidence is structural. Records needed for later reconstruction are captured at execution time and cannot depend on mutable agent memory or goodwill.
+Checks are not truth. Every verification result states assumptions, limits and what it did not establish.
+Generated implementation is not learned capability.
+Capability advances through demonstrated evidence, not confidence, familiarity, reading time or explanation alone.
+The learner writes the code. Responsibility moves upward into architecture, specification and verification while hands-on implementation continues.
+Ownership is explicit. Every consequential recommendation names what was not verified, who is affected, who decides and who accepts residual risk.
+Integrity is explicit. Limitations appear near the top of consequential recommendations; disclaimers never substitute for disclosure; evidence and credentials are never overstated.
+Permanent design sequence: agent nature → capability/failure model → memory/state model → integration model → authority → controls → evidence → operations → adaptation.
+
+2. TWO SYSTEMS, ONE COUPLING
+
+System A — the agent system: model, instructions, runtime/orchestrator, context, retrieval, memory/state, tools, planning loop, retry/cancel behavior and configuration.
+System B — the integrated agent–institution system: System A plus institutional identity, credentials, permissions, data, APIs, workflows, humans, approvals, policy, monitoring, incident response and vendor dependencies.
+For each deployment keep three lists: properties of the agent alone; properties of the institution alone; properties that emerge only after coupling.
+
+Agent Memory & State Lens — 12 dimensions:
+1. Type
+2. Write authority
+3. Read/retrieval authority
+4. Provenance
+5. Freshness
+6. Conflict handling
+7. Trust
+8. Isolation
+9. Poisoning exposure
+10. Retention/deletion
+11. Authority
+12. Recovery
+Rule: memory may influence reasoning. It must never silently manufacture authority or become evidence merely because the agent retained it.
+
+Effective authority:
+principal ∩ delegated scope ∩ task scope ∩ tool permission ∩ data boundary ∩ environment ∩ policy version
+
+Standing authority properties where applicable:
+- Safety: an unauthorized consequential action never executes.
+- Safety: an approval or delegation never survives a state change that invalidates it.
+- Progress: a valid authorized action completes or reaches a reconcilable terminal state rather than remaining indefinitely ambiguous.
+- Change: swapping model/runtime never silently widens permissions, data boundaries, approval rules, audit requirements or stop/recovery semantics.
+
+Operational-accountability principles:
+- Audit awareness may influence agent behavior; auditability must not depend on agent cooperation.
+- Normal compliant operation preserves bounded autonomy. Material deviation may trigger containment, evidence capture, authority contraction and review, but containment itself must be designed against continuity and false-positive cost.
+- Model-dependent behavior may change. System-enforced institutional authority invariants must not silently change with the model.
+
+3. ARCHITECT ACCOUNTABILITY LENS — FROM C2
+
+Definition — consequential recommendation:
+Any recommendation that affects agent authority, data access, customer outcomes, or the institution's risk position. Recommendations outside that definition do not require a Decision & Accountability Note.
+
+For every consequential recommendation record:
+- Recommendation — what am I recommending?
+- Basis — what evidence supports it?
+- Limit — what did I not establish?
+- Impact — who is affected if I am wrong?
+- Owner — who has legitimate authority to decide?
+- Residual risk — what remains after controls?
+- Escalation — what would make me say 'not yet'?
+
+Core rule: the architect owns the honesty and technical quality of the recommendation; the legitimate institutional owner owns the decision and residual-risk acceptance.
+Mirror rule: agent capability ≠ authority; architect expertise ≠ decision authority.
+C0–C1: technical ownership only; no accountability paperwork.
+From C2: Decision & Accountability Note is mandatory only for consequential recommendations as defined above.
+Missing a required note, or concealing/minimizing a material limitation, is a critical control defect.
+Before any consequential PoC or architecture: complete a pre-mortem covering how it fails, who is hurt, and whether the design prevents it.
+Maintain a Wrong-Call Log: decisions you would now reverse and what you missed.
+
+4. FIELD METHOD
+
+Discover → Frame → Require → Characterize → Integrate → Architect → Prove → Build → Verify → Communicate → Adopt → Operate → Learn.
+
+Learn rule:
+Vendor-side Learn converts deployment evidence into vendor learning. Material field findings are classified as one of: core product capability; supported configuration; partner-deliverable implementation; rejected customization. The learner distinguishes customer-specific requirements from recurring platform primitives, explains the product boundary, preserves safety/control invariants, and updates product assumptions, deployment standards and the Wrong-Call Log where applicable. Repeated materially similar field findings must trigger an explicit product / configuration / partner / reject decision rather than indefinite bespoke implementation.
+
+PoC rule:
+A PoC tests the assumption that could sink the architecture. It states: hypothesis; customer value affected; uncertainty; experiment; success criterion; failure criterion; evidence collected; decision after result.
+A visually impressive demo without a decision-producing hypothesis is not a PoC.
+
+Discovery doctrine:
+- Substantial scenarios are intentionally incomplete.
+- The evaluator/customer does not supply all relevant requirements up front.
+- The learner asks before designing.
+- The learner distinguishes symptom from root problem.
+- The learner identifies ambiguity and missing information.
+- The learner summarizes and confirms understanding.
+- The learner records assumptions and unresolved unknowns.
+
+Three-level communication:
+Executive — business problem; value; major risk; decision needed.
+Operational / control — who acts; what is automated; what remains human; exceptions/failures; evidence; accountability/ownership.
+Technical — components; interfaces; identity; state; enforcement; data flow; failure modes; observability; SLO; cost; security; trade-offs.
+
+Stakeholder map:
+buyer; sponsor; business owner; operator; technical owner; security; risk/compliance; privacy; audit/assurance; procurement/vendor management; implementation partner where relevant; incident/operations owner.
+Record who can block, who can approve, who bears operational consequences, and which requirements are mandatory versus negotiable.
+
+5. VERIFICATION LADDER
+
+Known cases → unit/example tests.
+Input edge cases → Hypothesis property tests.
+Sequences with retries/timeouts/overlap → Hypothesis stateful tests.
+Interleavings and crash behavior in a finite model → TLA+ with TLC.
+A precise critical claim under explicit assumptions → Lean; literacy required, independent non-trivial authorship is stretch.
+
+Every verification package states: workflow; must-never claim; must-eventually claim and assumptions where applicable; chosen technique and why; results; limits; what was not run/explored/proved; how the model or claim maps to implementation.
+Interpretation rules:
+- Passing generated tests is evidence, not proof.
+- A TLA+ model is an abstraction; identify where it can diverge from shipped code.
+- A proof covers only the formalized claim under its assumptions; check the claim matches the product.
+- A safety property can be satisfied vacuously; pair safety with useful progress.
+- Use the simplest useful check. No tool is mandatory because it is sophisticated.
+
+6. FOURTEEN CAPABILITY FAMILIES
+
+1. Systems architecture — Can reason end-to-end across application, agent, control, inference and infrastructure boundaries.
+2. APIs / identity / state / reliability — Can independently build and debug the technical substrate.
+3. Inference economics — Can reason about latency, throughput, memory, capacity, SLO and cost trade-offs.
+4. Discovery / requirements elicitation — Can uncover the real problem rather than accept the initial customer framing.
+5. Governance / control design — Can translate authority, policy, evidence and accountability into enforceable controls.
+6. PoC construction — Can select and prove the uncertain assumptions that determine whether the architecture works.
+7. Technical communication — Can explain and defend architecture to technical and non-technical audiences.
+8. Stakeholder management — Can identify conflicting objectives, decision rights, blockers, owners and escalation paths.
+9. Incident analysis — Can reconstruct failure, contain impact, reconcile state and improve controls.
+10. Scalable verification / formal methods — Can state safety/liveness properties and assumptions, choose the simplest useful check, and interpret evidence without confusing checks with truth.
+11. Agent capability / behavior modelling — Can distinguish model, runtime, tools and state; characterize capabilities, uncertainty and agent-native failure modes before assigning authority.
+12. Agent memory / state architecture — Can design memory/state boundaries, provenance, freshness, write/read authority, isolation, retention, invalidation, trust and authority semantics.
+13. Black-box installation / integration — Can install, configure, authenticate, instrument, test, break, diagnose, constrain and hand over an unfamiliar packaged/vendor component.
+14. Agent–institution systems integration — Can model emergent behavior created by coupling the agent to institutional identity, data, tools, workflows, humans and controls.
+
+Vendor-side field-to-product learning is a cross-cutting application of systems architecture, stakeholder management and agent–institution systems integration. It is not a fifteenth capability family.
+
+Short stage-to-family map:
+- C0 → foundation for APIs/identity/state/reliability through independent technical agency.
+- C1 → systems architecture; APIs/identity/state/reliability; technical communication; black-box installation/integration.
+- C2 → systems architecture; discovery/requirements; governance/control design; stakeholder management; agent capability modelling; agent memory/state architecture; agent–institution integration.
+- C3 → governance/control design; PoC construction through one bounded decision-producing PoC; agent memory/state architecture; systems architecture.
+- C4 → APIs/state/reliability; incident analysis; scalable verification/formal methods; technical communication; agent–institution integration.
+- C5 → governance/control design; scalable verification/formal methods; agent capability modelling; agent memory/state architecture; black-box integration; agent–institution integration.
+- C6 → governance/control design; stakeholder management; incident analysis; agent–institution integration.
+- C7 → systems architecture; discovery/requirements; governance/control design; stakeholder management; technical communication.
+- C8 → inference economics; systems architecture; technical communication.
+- C9 → all 14 capability families integrated and defended.
+
+7. SCOPE & EFFORT MODEL
+
+Must = pass-critical. Should = deepen. Stretch = non-blocking and never silently becomes a requirement.
+Reference planning envelope: about 25 books total. This is a planning estimate only, not a completion requirement.
+Books may be added, merged or shortened without changing the stage standard.
+Approximate stage effort: C0≈2, C1≈2, C2≈3, C3≈2, C4≈3, C5≈3, C6≈3, C7≈2, C8≈2, C9≈3. C5 is the heaviest stage.
+One 10-day book at a time. No calendar debt. No unnecessary restart.
+
+8. STAGES
+
+C0: Programming Independence (≈2 books)
+MUST:
+- Python fundamentals; files/JSON; exceptions; basic classes; pytest; tracebacks/debugging; shell and Git essentials.
+- Blank-file construction, reconstruction and variation.
+- Debug by hypothesis before seeking help.
+- Maintain an error log and explain recurring mistakes in your own words.
+SHOULD:
+- Build small personally owned programs that combine multiple C0 capabilities.
+- Increase fluency without importing later-stage architecture material.
+STRETCH:
+- Additional Python fluency drills that remain strictly inside C0 scope.
+Evidence: Code, terminal output, error log, debugging hypotheses, reconstruction, variation and explanation.
+Critical dimensions: Independent construction; debugging by hypothesis.
+Human calibration: None.
+Accountability: Technical ownership only. No Decision & Accountability Note required.
+Stage note: No Field-SA overlay. Do not introduce agents, formal methods, black-box integration, accountability paperwork or architecture material.
+
+C1: APIs, Identity, Authorization, Durable State & Black-Box Integration (≈2 books)
+MUST:
+- Translate a plain-language need into actors, systems, trust boundaries, API interactions and state transitions.
+- Build and debug API interactions, authentication, authorization and durable state.
+- Complete one bounded unfamiliar-component integration: install/start, configure, authenticate without hard-coded secrets, connect, instrument, smoke-test, break, diagnose, stop/rollback/restart and hand over.
+- Label each important black-box claim as documented, observed, inferred or unknown.
+SHOULD:
+- Explain the integration to both an engineer and an operational/business stakeholder.
+- Identify minimum network/data access and remove unnecessary privileges.
+STRETCH:
+- Integrate a second component with a materially different authentication or state pattern.
+Evidence: Integration Discovery Brief + Black-Box Integration Packet.
+Critical dimensions: Working integration; failure diagnosis; documented-vs-observed separation.
+Human calibration: None.
+Accountability: Technical ownership only. No Decision & Accountability Note required.
+Stage note: Scope budget prevents the black-box exercise from displacing the core technical foundation.
+
+C2: Agent Characterization, Memory & Effective Authority (≈3 books)
+MUST:
+- Build an Agent Capability & Failure Profile: model/runtime/tool/state boundaries, action surface, uncertainty, injection exposure, observability and escalation triggers.
+- Build the 12-dimension Agent Memory & State Profile: type, write authority, read authority, provenance, freshness, conflict, trust, isolation, poisoning, retention, authority and recovery.
+- Keep three explicit lists: properties of the agent alone, properties of the institution alone, and properties that emerge only after coupling.
+- Implement effective authority: principal ∩ delegated scope ∩ task scope ∩ tool permission ∩ data boundary ∩ environment ∩ policy version.
+- Apply privacy at the boundary: data minimization, PII/sensitive-field identification, memory-write limits, access boundaries and retention intent.
+- Complete Human Checkpoint H1: discovery with a real person presenting an ambiguous problem.
+- Create a one-page Decision & Accountability Note for each consequential recommendation.
+- Before any consequential PoC or architecture, complete a pre-mortem: how this fails, who is hurt, and whether the proposed design prevents it.
+- Start and maintain a Wrong-Call Log: decisions you would now reverse and what you missed.
+SHOULD:
+- Create a simple authority map and escalation map.
+- Test stale-memory and stale-authority scenarios.
+STRETCH:
+- Compare two agent/runtime configurations and show how the safe authority envelope changes.
+Evidence: Agent Capability & Failure Profile + Agent Memory & State Profile + discovery record + Decision & Accountability Note + pre-mortem/Wrong-Call Log.
+Critical dimensions: Discovery quality; failure-source attribution; authority enforced in code; honest limitation disclosure.
+Human calibration: H1 required. Substitute reviewer allowed; otherwise defer checkpoint up to one book. Never skip; AI cannot substitute.
+Accountability: Accountability Lens becomes mandatory from this stage onward.
+Stage note: Missing the Decision & Accountability Note, or concealing/minimizing a material limitation, is a critical control defect.
+Load check: C2 is at elevated overload risk because it combines H1, two profiles, effective authority, privacy, coupling analysis and accountability practice. Baseline remains ≈3 books. If execution evidence shows overload, add one C2 book rather than dropping a Must item. Recommended split: Book A — discovery + H1 real-human discovery checkpoint + Agent Capability & Failure Profile; Book B — Agent Memory & State Profile + privacy; Book C — effective-authority implementation + coupling analysis + Decision & Accountability Note/pre-mortem/Wrong-Call practice + integrated defense; optional Book D — remediation, changed-scenario variation, or additional integration practice only. H1 occurs while discovery is still open so that real-human feedback can shape the later modelling. No Must item is removed.
+
+C3: Evidence, Retrieval, Grounding & Independent Verification (≈2 books)
+MUST:
+- Separate source of truth, model output, deterministic calculation, independent verification, audit evidence and remembered/retrieved context.
+- Treat memory as evidence only when provenance, authority, freshness and integrity justify it.
+- Prevent stale, contradictory or unverified memory from silently overriding current institutional state.
+- Write PoC acceptance criteria before implementation.
+- Build and run one bounded PoC that tests one decision-producing uncertainty in the evidence/retrieval/grounding mechanism. Before implementation, state the hypothesis, customer value affected, uncertainty, success criterion, failure criterion, evidence to collect and decision rule; after execution, record the result and the decision produced by the evidence.
+- Apply privacy-by-design to retrieval, memory and logs: minimum necessary data, redaction/tokenization where appropriate, access control, retention and deletion.
+- Continue Decision & Accountability Notes, pre-mortems and Wrong-Call Log where consequential recommendations are made.
+SHOULD:
+- Pin or version critical sources used for governed claims.
+- Define what evidence would cause the customer to reject the mechanism.
+STRETCH:
+- Add deterministic replay or re-computation for one governed decision.
+Evidence: Evidence & Acceptance Matrix + bounded PoC implementation/results + accountability evidence where applicable.
+Critical dimensions: Evidence taxonomy; stale-memory defense; acceptance criteria stated before the build; PoC tests a real decision-producing uncertainty rather than merely demonstrating functionality.
+Human calibration: At the scheduled review after C3, independently human-score at least one prior AI-scored gate where a suitable reviewer is available, plus any borderline gate.
+Accountability: Limits must appear near the top of the recommendation, not buried in a footer.
+Stage note: If human and AI scores differ by more than one rubric level, investigate the rubric and the prior decision.
+
+C4: Reliability, Transactions, Concurrency, Cancellation & Observability (≈3 books)
+MUST:
+- State at least one safety property, one progress/eventuality property where applicable, and their assumptions.
+- Use Hypothesis property-based testing and stateful testing where state transitions interact.
+- Exercise retries, timeouts, crashes, overlapping requests, degraded tools/APIs, partial persistence and stale/duplicated state.
+- Reconcile agent memory, workflow state, tool/system state and institutional source of truth.
+- Complete the canonical lost-response/retry exercise while preventing duplicate consequential action and preserving a valid completion/reconciliation path.
+- Analyze at least one real publicly documented or legitimately accessible incident/postmortem. No confidential employer/customer material is required or permitted.
+- Continue accountability notes and pre-mortems for consequential design decisions.
+SHOULD:
+- Communicate the incident differently to engineering, operations/risk and an executive owner.
+- Compare example tests with generated property/stateful exploration.
+STRETCH:
+- Model a second scenario involving cancellation or partial execution.
+Evidence: Incident Packet + Hypothesis evidence + properties/assumptions + real-incident analysis.
+Critical dimensions: Property meaning stated by the learner first; correct interpretation; limitations stated.
+Human calibration: No new checkpoint.
+Accountability: The incident analysis must distinguish technical cause, control failure and accountable institutional ownership.
+Stage note: Passing generated tests is evidence, not proof.
+
+C5: Evaluation, Security, Adversarial Testing & Formal Modelling (≈3 books · HEAVIEST STAGE)
+MUST:
+- Define an eval objective, representative eval set with normal/edge/adversarial slices, baseline and regression suite.
+- Interpret false positives, false negatives and disagreement; use human-labelled references where appropriate.
+- Explain limits of LLM-as-judge: bias, leakage, correlated failure, evaluator drift and non-independence.
+- Threat-model injection, tool misuse, poisoned/stale memory, cross-tenant leakage, credential misuse, unauthorized data access, unintended action chaining and black-box assumptions.
+- Build one bounded TLA+ specification, run TLC on a finite model, and map the abstraction back to implementation limits.
+- Demonstrate Lean proof literacy by reading, explaining and modifying a small proof. Non-trivial independent authorship remains stretch.
+- Complete Human Checkpoint H2: technically competent architecture review.
+- Continue Decision & Accountability Notes, pre-mortems and Wrong-Call Log.
+SHOULD:
+- Attempt to falsify at least one important black-box assumption.
+- Run a regression comparison after a model/runtime change.
+STRETCH:
+- Author a small Lean proof independently for a precise critical claim.
+Evidence: Eval & Regression Pack + Objection & Decision Log + Formal Assurance Packet + H2 review record.
+Critical dimensions: Eval validity; threat coverage; model-to-implementation mapping; honest statement of unproved claims.
+Human calibration: H2 required. Substitute reviewer allowed; otherwise defer up to one book. Never skip; AI cannot substitute.
+Accountability: Evidence and credentials must never be overstated.
+Stage note: C5 is explicitly the heaviest stage in the planning envelope.
+
+C6: Human Authority, Evidence Capture, HITL & Containment (≈3 books)
+MUST:
+- Build a Stakeholder & Authority Map: maker, checker, exception authority, stop, restart, risk/compliance, security, operations and incident owners.
+- Capture structural execution-time evidence independent of agent cooperation: principal/delegation, correlation ID, model/runtime/config version, policy/control version, action, payload hash where appropriate, approval reference, state transition, outcome/retry/error, timestamp, human intervention and reconciliation.
+- Separate continuous evidence capture, periodic audit and event-triggered review.
+- Define a Deviation Response Policy with severity, detection confidence, false-positive cost, false-negative cost, containment action, degraded mode, authority contraction, human review, restoration owner and conditions.
+- Stress-test containment versus continuity using an over-sensitive detector that produces excessive quarantine.
+- Quantify HITL economics: review rate, escalation rate, review duration, staffing, queue latency, peak-load effect and availability impact.
+- Perform the HITL executability test: if expected volume makes meaningful review impossible, the approval step is control theatre and fails.
+- Design the transition from approve-everything toward bounded autonomy with exception-only intervention where justified.
+- Complete one 'say no / not yet' exercise during C6 or explicitly defer it as a tracked C9 requirement.
+- Complete one commercial-pressure control challenge during C6 or explicitly defer it as a tracked C9 requirement.
+SHOULD:
+- Define service-continuity tiers for deviation responses.
+- Run a drill where a bad threshold creates unnecessary quarantine and revise the policy.
+STRETCH:
+- Prototype routing among autonomous, human-review and stop states using fixed policy.
+Evidence: Continuous Evidence & Deviation Response Policy + HITL Capacity Sheet + authority model + accountability challenge records.
+Critical dimensions: Evidence capture independent of agent; containment/continuity trade-off; meaningful HITL; explicit restoration.
+Human calibration: At the scheduled review after C6, independently human-score at least one prior AI-scored gate where a suitable reviewer is available, plus any borderline gate.
+Accountability: The learner must name the risk owner when pressure exists to weaken a control; neither quiet compliance nor quiet resistance is acceptable.
+Stage note: If a 'say no / not yet' or commercial-pressure exercise is deferred, C9 cannot pass until it is completed.
+
+C7: Regulated BFSI Governance & Assurance (≈2 books)
+MUST:
+- Translate policy, regulation, supervisory expectation, internal procedure, risk appetite and tacit operating practice into distinct control implications.
+- Verify the current version/date of at least one horizontal AI-risk framework, one jurisdiction-specific legal/regulatory source, one sector/banking supervisory source where applicable, and one synthetic institutional policy before use.
+- Build an Institution → Control Traceability Matrix: requirement, source/owner, technical interpretation, enforcement point, evidence, exception process and residual human duty.
+- Govern privacy and evidence retention: minimum necessary data, PII handling, log/memory retention, deletion, access and auditability.
+- Govern authority contraction/quarantine, restoration and model/runtime change approval.
+- Continue accountability notes for consequential recommendations.
+SHOULD:
+- Compare two frameworks and identify where their scopes differ.
+- Create an assurance argument for one critical control.
+STRETCH:
+- Map the same architecture against a second jurisdiction to expose portability limits.
+Evidence: Institution → Control Traceability Matrix + verified-source register.
+Critical dimensions: Source currency verified; institutional decision rights separated from platform enforcement.
+Human calibration: No new checkpoint.
+Accountability: Mutable regulations/frameworks are verified at use time; the curriculum does not freeze a current-version claim.
+Stage note: Examples may include NIST AI RMF, EU AI Act or model-risk guidance, but authoritative current versions must be checked at execution time.
+
+C8: SLO, Cost, Vendor & Inference Literacy (≈2 books)
+MUST:
+- Reason through latency/TTFT, throughput/concurrency, model/context size, GPU memory, HBM/DRAM/NVMe, KV cache, prefix reuse, eviction/recomputation, batching, routing, availability, capacity and cost.
+- Diagnose workload shape before recommending infrastructure.
+- Translate infrastructure choices into user experience, SLO, capex/opex and deployment risk.
+- Distinguish model-dependent behavior, runtime/orchestrator behavior and system-enforced institutional authority invariants.
+- Perform a Model/Runtime Change Impact Assessment including eval regression, tool use, memory/context behavior, latency/cost, security behavior, invalidated assumptions and controls requiring re-test/re-approval.
+- Include human-review economics in total system cost and latency.
+SHOULD:
+- Build a simple business case comparing credible alternatives.
+- Identify when specialist inference engineers are required.
+STRETCH:
+- Create a simple queue/capacity simulation for combined model + human-review bottlenecks.
+Evidence: Model/Runtime Change Impact Assessment + SLO/cost decision brief.
+Critical dimensions: No silent authority drift after model/runtime change; system cost includes human control cost.
+Human calibration: No new checkpoint.
+Accountability: Technical confidence does not substitute for naming who accepts the economic and operational trade-off.
+Stage note: A model swap must not silently widen permissions, approval rules, data boundaries, audit requirements or stop/recovery semantics.
+
+C9: Integrated Hardening, Field Architecture Defence & Transfer (≈3 books)
+MUST:
+- Run one ambiguous Vendor-Side Role B engagement from discovery through adoption/operations, revising earlier artifacts rather than recreating them.
+- Use the canonical sequence: Discover → Frame → Require → Characterize → Integrate → Architect → Prove → Build → Verify → Communicate → Adopt → Operate → Learn.
+- Handle one change injection: requirement, model/runtime or vendor-version/configuration change.
+- Handle one incident injection: partial execution, stale authority, duplicate action, policy change, security issue, tool timeout or equivalent.
+- Complete Human Checkpoint H3: mixed-stakeholder defence with at least one non-technical listener.
+- Complete any deferred 'say no / not yet' and commercial-pressure control challenges.
+- Produce one Field-to-Product Decision Record. For material requirements discovered during the engagement, classify each as core product capability, supported configuration, partner-deliverable implementation, or rejected customization. Defend the classification in terms of recurrence, product boundary, safety/control invariants, maintainability, customer value and vendor economics. The record must include at least one of: a field discovery that should become reusable platform capability; or a customer request that should not be productized.
+- Complete the graded transfer test in an unfamiliar domain. The domain and scenario are selected from a list prepared before C9 by someone other than the learner, or drawn at random from that pre-committed list; the learner does not see scenario details in advance. If no such person exists, the learner may pre-commit only a list of domain labels or very high-level domain categories, then use a random draw. After the draw, the actual scenario details must be generated or supplied independently and must not have been visible to the learner in advance. The learner never selects their own transfer domain or writes the final scenario they will be graded on.
+- Transfer test scores 0–3 on four dimensions: discovery; capability/authority model; control design; and what was correctly NOT carried over from banking. Pass requires ≥2 on every dimension.
+- Consolidate evidence into seven bundles rather than generating 20+ fresh artifacts.
+SHOULD:
+- Include a model/runtime or vendor-component change in the engagement.
+- Re-run eval/regression suites after a meaningful change.
+STRETCH:
+- Add a second transfer scenario or deeper implementation in the transfer domain.
+Evidence: Seven evidence bundles, with the Field-to-Product Decision Record included in Bundle 3 + H3 record + transfer-test score + final defence.
+Critical dimensions: Full-loop independence; adaptation under change; accountability; vendor-side product-boundary judgment; transfer without inappropriate banking assumptions.
+Human calibration: H3 required. Substitute reviewer allowed; otherwise defer up to one book. Never skip; AI cannot substitute. Scheduled review after C9 includes at least one prior AI-scored gate where suitable.
+Accountability: The final recommendation must make limitations and residual-risk ownership explicit and withstand review by affected customers, the institution and a regulator.
+Stage note: C9 is integration, revision and defence—not a document-production contest.
+Load check: C9 is at elevated overload risk because it combines the full engagement, H3, change/incident injections, deferred C6 exercises, transfer testing and final evidence assembly. Baseline remains ≈3 books. If execution evidence shows overload, add one C9 book rather than dropping a Must item. Recommended split: Book A — ambiguous engagement through architecture + change injection; Book B — PoC/evals/assurance + incident injection + any deferred say-no/commercial-pressure exercise; Book C — adoption, Field-to-Product Decision Record, seven-bundle integration, H3, graded transfer test and final defense; optional Book D — remediation, additional transfer variation, or repeated defense only. No Must item is removed.
+
+9. GATES
+
+Levels:
+0 — Not demonstrated or unsafe.
+1 — Assisted / fragile.
+2 — Independent / sufficient.
+3 — Robust under ambiguity, change and challenge.
+
+Pass rule: every critical dimension for the stage is at 2 or above, no critical safety/control defect exists, and required blank-file/new-scenario reconstruction or variation succeeds.
+
+Applicability:
+- From C2 onward: Discovery + Build + Defense.
+- From C4 onward: additionally Specify + Check + Interpret.
+
+Gate test dimensions:
+Discovery:
+- problem framing
+- hidden-constraint elicitation
+- stakeholder/decision-right discovery
+- assumption tracking
+- avoidance of premature solutioning
+- summary/confirmation quality
+
+Build:
+- independent construction
+- correct mechanism
+- observability
+- failure handling
+- reconstruction/variation
+
+Defense:
+- why this design
+- where enforcement lives
+- credible alternative rejected
+- failure prevented
+- limitation/residual risk
+
+Specify + Check + Interpret — from C4:
+- property stated
+- assumptions stated
+- check chosen appropriately
+- result interpreted
+- what was not proved stated
+
+Stage-specific scoring may instantiate these dimensions into scenario-specific indicators, but may not lower the pass threshold or invent pass-critical capabilities outside the active stage.
+Concrete indicators and hidden-requirement keys must be fixed and recorded before the learner starts the scenario.
+They may not be edited afterward without recording the change and the reason.
+Missing a named catastrophic requirement fails the gate regardless of coverage percentage.
+
+10. ASSESSMENT INDEPENDENCE & HUMAN CALIBRATION
+
+AI may roleplay stakeholders and grade routinely against the fixed rubric.
+Human checkpoints H1/H2/H3 are mandatory at C2/C5/C9.
+General checkpoint evidence may be meeting notes, review comments, anonymized transcript, written feedback or revision log.
+No confidential employer or customer information is permitted.
+Checkpoint fallback: use a substitute reviewer or defer up to one book. A checkpoint is never skipped, and AI never substitutes as the independent reviewer.
+At scheduled reviews after C3, C6 and C9, sample at least one prior AI-scored gate plus any borderline gate for independent human scoring where a suitable reviewer is available.
+If human and AI scoring differs by more than one rubric level, investigate the rubric and the prior decision.
+
+11. ACCOUNTABILITY & INTEGRITY PRACTICE
+
+Two kinds of accountability:
+- Architect: honest analysis, limits disclosed, risks surfaced, evidence not overstated.
+- Institution: legitimate decision owner, residual-risk acceptance, operating ownership and escalation.
+Do not absorb institutional accountability into the architect role.
+
+Required integrity rules from C2:
+- Limitations appear near the top of consequential recommendations, not buried in footers.
+- Disclaimers never substitute for disclosure.
+- Evidence and credentials are never overstated.
+- Minimum necessary customer data access.
+- Decision & Accountability Note for consequential recommendations only.
+- Pre-mortem before consequential PoC/architecture.
+- Wrong-Call Log maintained.
+
+Required scenario practices:
+- Real incident analysis at C4 using public or legitimately accessible material only.
+- 'Say no / not yet' exercise at C6 or C9: state blocking condition, evidence, what would change the decision, and accountable owner; avoid exaggeration or theatrical refusal.
+- Commercial-pressure control challenge at C6 or C9: stakeholder wants weaker control to hit a deadline; name the risk and owner rather than quietly complying or quietly resisting.
+- HITL executability test at C6: if human review cannot be performed meaningfully at expected volume, the nominal approval step is control theatre and fails.
+
+Test question: would you be comfortable if affected customers, the regulator and your employer read the recommendation exactly as written?
+
+12. LEARNING & AI ASSISTANCE COVENANT
+
+Generated implementation is not learned capability.
+Capability advances through demonstrated evidence, not confidence, familiarity, reading time or explanation alone.
+The learner writes, debugs, runs, interprets and owns the work.
+AI may explain, question, review, challenge, give bounded hints after an attempt, generate adversarial tests and roleplay stakeholders.
+AI may not provide the learner's first implementation, silently rewrite active work, reveal the hidden requirement set, write first-attempt discovery questions, or supply the final defense before an attempt.
+Verification exception: after the learner states in their own words the workflow, what must never happen, what must eventually happen and the assumptions, AI may suggest the simplest check and draft Hypothesis/TLA+/Lean scaffolding. The learner alone decides what a property means institutionally.
+After substantial help: blank file → reproduce → variation.
+Before debugging help: 'My hypothesis is: ___'.
+
+13. CURRICULUM GOVERNANCE
+
+Path A — material gap: a demonstrated significant capability gap or execution blocker may trigger the smallest bounded correction at any time.
+Path B — scheduled review: after C3, C6 and C9, inspect execution evidence for scope mismatch, overload, missing capability or weak rubric. Review does not imply change.
+Job postings, vendor announcements, framework trends, LinkedIn posts and market anxiety are not triggers by themselves.
+Mutable regulations/frameworks are verified at use time, never frozen as current-version claims in the curriculum.
+
+14. C9 EVIDENCE BUNDLES
+
+1. Discovery & Requirements Dossier
+2. Agent / Memory / Integration Model
+3. Architecture & Decision Record — includes Field-to-Product Decision Record
+4. PoC & Evaluation Evidence
+5. Assurance / Security / Verification Pack
+6. Operations / Incident / Adoption Pack
+7. Presentations & Final Defence
+
+15. GRADUATE STANDARD
+
+A v0.8.3 graduate can perform the following transformation:
+1. Ambiguous problem
+2. Disciplined discovery
+3. Stakeholder / authority map
+4. Requirements and constraints
+5. Black-box component intake / integration
+6. Agent capability / failure model
+7. Agent memory / state model
+8. Agent–institution integration / emergent-system model
+9. Authority / control architecture
+10. Targeted PoC
+11. Evaluation & regression evidence
+12. Security / verification evidence
+13. Technical + executive communication
+14. Objection handling
+15. Controlled adoption
+16. Safe operation
+17. Incident containment / reconciliation
+18. Revised architecture
+19. Field-to-product learning / product-boundary decision
+20. Cross-domain transfer
+
+Vendor-side Learn means the graduate can decide which field findings should become reusable platform capability, supported configuration, partner-deliverable implementation or rejected customization, without confusing customer-specific work with product strategy.
+
+The transfer test asks whether the learner acquired architecture skill rather than merely memorizing banking patterns.
+The role is not to manufacture agreement. It is to make disagreement explicit, turn stakeholder concerns into buildable requirements, route decisions to legitimate owners, and say 'not yet' when evidence does not support 'yes'.
+The graduate need not be the deepest specialist in every layer. They must know which specialist is needed, preserve accountability, distinguish model/runtime/state/tool/institutional failures, and keep consequential AI inside legitimate authority.
+
+APPENDIX A — CHANGE HISTORY
+
+v0.3: Field Solution Architecture added.
+v0.4: scalable verification/formal-methods layer added.
+v0.5: agent capability/behavior/failure modelling made explicit.
+v0.6: memory/state architecture, black-box integration, agent–institution coupling, continuous evidence, deviation-responsive authority and model/runtime reassessment added.
+v0.7: canonical consolidation, Must/Should/Stretch, measurable gates, explicit evals, privacy, HITL economics, regulatory-source verification, containment/continuity, transfer test and seven evidence bundles.
+v0.8: accountability hardening — target-role refinement; Architect Accountability Lens and Decision & Accountability Note; pre-mortem and Wrong-Call Log; say-no/commercial-pressure/HITL executability exercises; real-incident analysis; transfer-test scoring; book-effort envelope; grader calibration; Professional Environment Due-Diligence appendix.
+v0.8.1: restored v0.7 capability-family, gate, fieldcraft, learning-covenant, human-evidence and 19-step graduate detail; defined consequential recommendation; made transfer-test selection independent; locked scenario indicators before execution; added explicit C2/C9 load-splitting plans; restored omitted permanent control/PoC/accountability wording.
+v0.8.2 FINAL: corrected C2/C9 load plans so no Must item lives only in an optional book; moved H1 into early C2 discovery; closed the transfer-test scenario-selection loophole; restored explicit gate applicability from C2/C4; added one bounded decision-producing PoC as a C3 Must. No standards were lowered and no new stage was added.
+v0.8.3 FINAL: operationalized Vendor-Side Learn as field-to-product learning; added one C9 Must Field-to-Product Decision Record and vendor-side product-boundary critical dimension; embedded the record in the existing seven-bundle evidence model; extended the graduate transformation to 20 steps; corrected the stale graduate-version label. No stage or capability family was added; active C0 execution remains unchanged.
+
+APPENDIX B — PROFESSIONAL ENVIRONMENT DUE-DILIGENCE CHECKLIST (NOT GRADED)
+
+- What happens when I advise a customer not to buy or not to deploy yet?
+- Am I measured primarily on contracts signed, or on deployments that stay safely live and useful?
+- Who owns residual risk after my recommendation?
+- Can I escalate material concerns without penalty?
+- Are security, risk, operations and engineering empowered to block or revise a deployment?
+- Is human approval genuinely executable at expected volume, or is it control theatre?
+- Are limitations and incidents surfaced openly, or pushed into footnotes and after-the-fact explanations?
+
+END — CURRICULUM v0.8.3 FINAL

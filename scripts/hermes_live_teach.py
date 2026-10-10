@@ -17,6 +17,7 @@ from uuid import uuid4
 PROJECT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT / 'src'))
 from gurukul.hermes_relay import Relay, private_key
+from gurukul.pedagogy import orientation, turn_context, build_prompt, validate_response
 from gurukul.hermes_continuation import load_previous, continuation_input
 from gurukul.hermes_teaching import SYSTEM_PROMPT, record_result, source_input, teaching_response
 from gurukul.store import Store, canonical, now
@@ -65,7 +66,7 @@ class TeachingExit(Exception):
 def read_answer(previous):
     while True:
         try:
-            answer = input('Gurukul — your answer (/quit to finish): ')
+            answer = input('Gurukul — your answer or question (/quit to finish): ')
         except EOFError:
             raise TeachingExit()
         if answer.strip() == '/quit':
@@ -147,6 +148,11 @@ def run_locked(args):
         excerpt, provenance = previous['excerpt'], previous['provenance']
     else:
         prompt, excerpt, provenance = source_input(local_source, manifest, config, exercise)
+    curriculum, curriculum_proof = orientation(PROJECT, exercise)
+    context = turn_context(curriculum, previous,
+                           continuation['learner_answer'] if continuation else '',
+                           previous.get('history', []) if previous else [])
+    prompt = build_prompt(context, excerpt)
     state = (PROJECT / 'var').resolve()
     state.mkdir(exist_ok=True)
     subprocess.run(['git', '-C', str(PROJECT), 'check-ignore', '-q', str(state / 'hermes-live/proof.json')], check=True)
@@ -173,6 +179,8 @@ def run_locked(args):
               'scope': 'live_teaching_integration_only', 'hermes_revision': PIN,
               'gurukul_revision': subprocess.check_output(['git', '-C', str(PROJECT), 'rev-parse', 'HEAD'], text=True).strip(),
               'provenance': provenance, 'grants_mastery': False,
+              'curriculum_provenance': curriculum_proof,
+              'turn_context': context, 'epistemic_status': 'Model teaching judgments are provisional, not mastery evidence',
               'source_scope': 'Approved D01 HTML; book pages are not ingested by this test',
               'model_policy_version': policy['policy_version'], 'escalation_authority': 'gurukul'}
     if previous:
@@ -239,7 +247,7 @@ def run_locked(args):
                 final = worker['final_response']
                 if wire.get('finish_reason') != 'stop' or wire['message'].get('content') != final:
                     raise ValueError('Hermes final response differs from completed provider response')
-                teaching = teaching_response(final)
+                teaching = validate_response(json.loads(final), context)
                 report.update(status='PASS', teaching=teaching, response_sha256=hashlib.sha256(final.encode()).hexdigest())
                 (evidence / 'teaching-response.json').write_text(json.dumps(teaching, indent=2) + '\n')
             finally:
@@ -267,6 +275,8 @@ def run_locked(args):
     summary = {'status': report['status'], 'call_id': call_id, 'hermes_revision': PIN,
                       'root_call_id': report.get('root_call_id', call_id),
                       'parent_call_id': (report.get('continuation') or {}).get('parent_call_id'),
+                      'curriculum_provenance': report.get('curriculum_provenance'),
+                      'pedagogy': report.get('teaching', {}).get('pedagogy'),
                       'run_conversation_path': report.get('worker', {}).get('run_path'),
                       'boundary_before': report.get('worker', {}).get('boundary_before'),
                       'boundary_after': report.get('worker', {}).get('boundary_after'),
@@ -292,7 +302,12 @@ def run_locked(args):
         print('Evidence: ' + str(evidence))
     if report['status'] == 'PASS':
         print(report['teaching']['explanation'])
-        print(report['teaching']['diagnostic_question'])
+        if report['teaching'].get('miniature_example'):
+            print('Separate miniature example:\n' + report['teaching']['miniature_example'])
+        if report['teaching']['diagnostic_question']:
+            print(report['teaching']['diagnostic_question'])
+        else:
+            print('Ask a follow-up, describe your confusion, or type /quit.')
     return report
 
 

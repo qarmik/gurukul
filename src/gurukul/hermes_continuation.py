@@ -57,6 +57,27 @@ def load_previous(root, call_id, manifest, config, exercise):
                             (session['exercise_id'], session['exercise_version'])).fetchone()
         if not stored or digest(stored['content_json']) != stored['sha256'] or json.loads(stored['content_json']) != exercise:
             raise ValueError('Pinned exercise changed or corrupted')
+        history = []
+        cursor = event
+        visited = set()
+        while cursor is not None and len(history) < 20:
+            if cursor['event_id'] in visited or cursor['session_id'] != session['id']:
+                raise ValueError('Invalid teaching history chain')
+            visited.add(cursor['event_id'])
+            payload = json.loads(cursor['payload_json'])
+            if payload.get('status') != 'PASS': raise ValueError('History contains failed teaching turn')
+            teaching_item = payload.get('teaching', {})
+            history.append({'event_id': cursor['event_id'],
+                            'learner_message': payload.get('continuation', {}).get('learner_answer'),
+                            'question_answered': payload.get('continuation', {}).get('question_answered'),
+                            'explanation': teaching_item.get('explanation'),
+                            'question': teaching_item.get('diagnostic_question'),
+                            'miniature_example': teaching_item.get('miniature_example', ''),
+                            'pedagogy': teaching_item.get('pedagogy')})
+            parent_id = cursor['causation_id']
+            cursor = db.execute('SELECT * FROM events WHERE event_id=?', (parent_id,)).fetchone() if parent_id else None
+            if parent_id and cursor is None: raise ValueError('Missing parent teaching event')
+        history.reverse()
     finally:
         db.close()
     excerpt = read_local(directory / 'approved-excerpt.txt')
@@ -75,7 +96,7 @@ def load_previous(root, call_id, manifest, config, exercise):
     if (digest(final) != report.get('response_sha256') or teaching != report.get('teaching') or
             teaching != json.loads(read_local(directory / 'teaching-response.json'))):
         raise ValueError('Saved teaching response changed or corrupted')
-    return {'teaching': teaching, 'excerpt': excerpt, 'provenance': expected,
+    return {'teaching': teaching, 'history': history, 'excerpt': excerpt, 'provenance': expected,
             'ledger': ledger, 'session_id': session['id'], 'root_call_id': root_id,
             'parent_call_id': call_id, 'parent_event_id': event['event_id'],
             'parent_report_sha256': digest(canonical(recorded))}

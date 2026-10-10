@@ -83,3 +83,13 @@ successful question. Invalid empty/oversized answers reprompt without a model ca
 Each submitted answer uses a fresh isolated worker and at most one paid request.
 Failures stop without automatic retries. `--once` retains one-turn diagnostic mode;
 `--verbose` displays full proof JSON. See [interactive verification](docs/GURU-004-interactive.md).
+
+## GURU-004 pedagogical correction
+
+The tutor now receives a compact canonical curriculum orientation and linked recent
+teaching evidence. It can use general Python knowledge inside D01, answer direct
+questions, change strategy after confusion and propose more demanding practice.
+Curriculum requirements and progression stay under Gurukul authority. See
+[correction and live A–E acceptance](docs/GURU-004-pedagogy.md). **GURU-005 is blocked
+until live pedagogical acceptance passes.** Earlier one-turn/continuation passes
+remain integration evidence, not acceptance of this new teaching policy.

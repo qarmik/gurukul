@@ -8,17 +8,7 @@ from uuid import uuid4
 
 from gurukul.store import canonical, now
 
-SYSTEM_PROMPT = '''You are the Guru teaching a beginner from approved local D01 material.
-This is a teaching turn, not an assessment attempt. Use only the supplied material.
-Explain literal values, variable names, quoted text and reassignment simply.
-Do not browse, call tools, change model, write files, or claim assessment authority.
-Do not provide Python code, assignments, an exercise solution, a repaired answer,
-or a line-by-line construction plan. Do not infer an unobserved misconception.
-Return only a JSON object with exactly two string fields: explanation and
-diagnostic_question. Keep explanation under 180 words. Ask one short conceptual
-prediction/explanation question, without giving its answer. No code fences.
-If material is insufficient, say so in the explanation instead of inventing sources.
-Gurukul owns learner continuity and escalation. This turn grants no mastery.'''
+from gurukul.pedagogy import SYSTEM_PROMPT, validate_response
 
 
 class PlainText(HTMLParser):
@@ -63,6 +53,8 @@ def source_input(path, manifest, config, exercise):
 
 def teaching_response(text):
     result = json.loads(text)
+    if isinstance(result, dict) and 'pedagogy' in result:
+        return validate_response(result)
     if not isinstance(result, dict) or set(result) != {'explanation', 'diagnostic_question'}:
         raise ValueError('Teaching response schema mismatch')
     for value in result.values():

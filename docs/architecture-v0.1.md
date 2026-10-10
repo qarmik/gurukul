@@ -53,3 +53,14 @@ Day 6 / GURU-006: due retrieval, bounded assessment, failure-to-remediation tran
 Day 7 / GURU-007: real end-to-end learner trial, recovery check and release evidence.
 
 These are engineering targets with scope discipline, not a 60-minute build cap. No UI expansion, device enforcement or generic productivity tooling before the core learning loop works. Actual delayed retrieval is reported separately from simulated-clock scheduling tests. If upstream integration consumes more time, report it; never substitute a generic LLM and call the sprint complete.
+
+
+## GURU-004 correction: global awareness, local teaching
+
+The curriculum bounds teaching; it does not replace the Guru's intelligence.
+The Guru knows the whole journey but teaches the current step. Approved material
+provides source grounding; stable in-scope fundamentals may use model knowledge.
+Gurukul owns curriculum state, learner state, evidence and progression; Hermes owns
+pedagogical reasoning within granted authority. The target is the professional
+transformation defined by the canonical curriculum, not exercise completion alone.
+Implementation and acceptance limits: [GURU-004 pedagogy](GURU-004-pedagogy.md).
