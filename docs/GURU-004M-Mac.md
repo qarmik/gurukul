@@ -1,5 +1,53 @@
 # GURU-004M Mac setup and live acceptance
 
+## Targeted rerun after the supervised Guru contract repair
+
+Account/model setup and a real approved Claude ORIENTATION intervention have
+already passed in the supplied live run. Full acceptance is blocked at the Guru
+contract boundary. The [exact mismatch and repair](GURU-004M-contract.md) are
+offline verified. Do not repeat setup or the original failure trajectory.
+
+The corrected patch must be present in the Mac checkout before this test. A
+pull alone does not install unpublished local commits. Once the patch has been
+published or applied locally, verify the revision and run the twelve regressions.
+
+1. At the shell, synchronize the repair and run the targeted regressions:
+
+   ```sh
+   cd /Users/qarmik/Documents/GitHub/gurukul
+   git pull --ff-only
+   git rev-parse --short HEAD
+   PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_supervised_contract.py' -v &&
+   python3 scripts/hermes_live_teach.py \
+     --runtime-root /Users/qarmik/GurukulRuntime \
+     --continue 198b081e-17f5-4d71-87e1-5cb1152a5cf0 \
+     --maharishi --verbose
+   ```
+
+2. At the Gurukul prompt, submit only `what are you talking about?` first.
+   Require a saved runtime PASS, direct handling of the confusion/meta-question,
+   no ghost question, ungraded admission, evidence still unresolved, mastery
+   false and an open input prompt. Require a real `APPROVED` Anthropic directive
+   with HTTP 200 selecting ORIENTATION, with no automatic retry. A deterministic
+   fallback alone does not satisfy this targeted live expectation. If BLOCKED, stop and
+   retain this new call ID; its local report now includes structural diagnostics
+   for schema/authority failures. Do not repeat the failed turn automatically.
+
+3. Only after that turn succeeds, submit `where did that question come from?`,
+   then `you are just moving in loops`, then `check my understanding`, one at a
+   time. Answer the fresh check in your own words. Require the retired question
+   to remain absent, profile expiry/explicit-check exit, ordinary evidence
+   admission resuming and no mastery, progression, curriculum or security drift.
+   Quit with `/quit` and share the terminal output plus final call ID. Keep the
+   linked raw evidence locally for review.
+
+Done proof is the actual integrated transcript and parent-ledger evidence across
+those turns, including the existing isolation probes and provider budgets.
+Offline fixtures do not complete GURU-004M. GURU-005 remains blocked until review
+of this targeted run passes.
+
+## Original setup procedure (already completed in the supplied run)
+
 GURU-003's 24 Mac tests already passed; these instructions do not repeat them.
 No new setup package or Docker/Colima installation is needed. If an old teaching
 process is open, enter `/quit` at its Gurukul prompt first.

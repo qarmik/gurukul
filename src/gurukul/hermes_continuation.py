@@ -108,14 +108,22 @@ def load_previous(root, call_id, manifest, config, exercise):
         raise ValueError('Approved source provenance changed or corrupted')
     wire = json.loads(read_local(directory / 'provider-response.json'))
     final = wire['choices'][0]['message']['content']
+    raw_teaching = json.loads(final)
+    if (digest(final) != report.get('response_sha256') or raw_teaching != report.get('teaching') or
+            raw_teaching != json.loads(read_local(directory / 'teaching-response.json'))):
+        raise ValueError('Saved teaching response changed or corrupted')
+    # The report/context already matched the parent ledger and pinned exercise above.
+    # Validate derived identity separately from the original provider bytes.
     if report.get('pedagogy_admission',{}).get('conversation_status') == 'RESPONSE_REJECTED':
         from gurukul.pedagogy import validate_response
-        teaching = validate_response(json.loads(final), report.get('turn_context'), allow_safe_format=True)
+        teaching = validate_response(raw_teaching, report.get('turn_context'), allow_safe_format=True)
     else:
-        teaching = teaching_response(final)
-    if (digest(final) != report.get('response_sha256') or teaching != report.get('teaching') or
-            teaching != json.loads(read_local(directory / 'teaching-response.json'))):
-        raise ValueError('Saved teaching response changed or corrupted')
+        teaching = teaching_response(final, report.get('turn_context'))
+    binding = report.get('pedagogy_admission',{}).get('response_authority_binding')
+    if binding is not None:
+        from gurukul.pedagogy import response_authority_binding
+        if binding != response_authority_binding(raw_teaching, report.get('turn_context')):
+            raise ValueError('Saved response authority binding changed or corrupted')
     shown = dict(report.get('display_teaching', teaching))
     if report.get('pedagogy_admission'):
         shown['pedagogy'] = dict(teaching.get('pedagogy', {}), judgment=report['pedagogy_admission']['judgment'], intents=report['pedagogy_admission'].get('intents', {}))

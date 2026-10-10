@@ -230,7 +230,8 @@ class SupervisorTests(unittest.TestCase):
         previous=dict(self.previous,excerpt='Synthetic excerpt',parent_call_id='previous',parent_event_id=None,parent_report_sha256='hash')
         message='Why keep repeating the question?';context=self.context(message)
         state,audit=supervise(snapshot(context,self.state),self.state,FakeProvider(),store,session['id'],call)
-        r=proposal(question=message);a,d=evaluate_output(r,control_context(context,state))
+        context=control_context(context,state)
+        r=proposal(question=message);a,d=evaluate_output(r,context)
         a,d,state,proof=apply_control(a,d,state,context);audit['compliance']=proof
         _,continuation=continuation_input(previous,message)
         manifest=json.loads((ROOT/'content/sources.json').read_text());config=json.loads((ROOT/'config/hermes-live.json').read_text())
@@ -239,7 +240,8 @@ class SupervisorTests(unittest.TestCase):
             'sections':['Concepts to own',config['source_section']],'excerpt_sha256':digest(excerpt),
             'manifest_sha256':digest(canonical(manifest)),'exercise_sha256':digest(canonical(EXERCISE))}
         report={'status':'PASS','call_id':call,'teaching':r,'response_sha256':digest(final),'provenance':provenance,
-                'display_teaching':d,'pedagogy_admission':a,'supervision':audit,'supervision_state':state,'continuation':continuation}
+                'display_teaching':d,'pedagogy_admission':a,'supervision':audit,'supervision_state':state,'continuation':continuation,
+                'turn_context':context}
         record_result(store,call,session['id'],report)
         self.assertEqual('supervision.decision_recorded',store.events()[-2]['event_type'])
         self.assertEqual(audit,store.events()[-2]['payload']);store.close()

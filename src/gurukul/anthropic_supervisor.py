@@ -8,6 +8,7 @@ from typing import Protocol
 from gurukul.hermes_relay import private_key
 from gurukul.maharishi import SYSTEM, validate_directive
 from gurukul.store import canonical, now
+from gurukul.response_contract import ResponseContractError
 
 
 class SupervisorProvider(Protocol):
@@ -84,7 +85,12 @@ class AnthropicSupervisor:
             raise ValueError('Supervisor tools/unknown response blocks denied')
         texts=[x['text'] for x in blocks if x.get('type')=='text']
         if len(texts)!=1 or len(texts[0])>4000:raise ValueError('Expected one bounded directive')
-        directive=validate_directive(json.loads(texts[0]))
+        try:
+            proposal=json.loads(texts[0])
+        except json.JSONDecodeError:
+            raise ResponseContractError('Expected a JSON supervisory directive',
+                                        stage='maharishi.directive.json',code='invalid_json') from None
+        directive=validate_directive(proposal)
         usage=response.get('usage') or {};price=self.config.get('pricing',{})
         tokens=[usage.get('input_tokens'),usage.get('output_tokens')]
         if (price.get('model')==self.config['model'] and all(type(x) is int and x>=0 for x in tokens)

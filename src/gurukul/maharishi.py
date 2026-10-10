@@ -4,6 +4,7 @@ import hashlib
 import re
 from uuid import uuid4
 from gurukul.store import canonical, now
+from gurukul.response_contract import ResponseContractError, schema_error
 
 VERSION='maharishi-pedagogy-v1'
 # Declarative controls only. None can alter assessment/session phase or hard policy.
@@ -46,19 +47,26 @@ def hashed(value):return hashlib.sha256(canonical(value).encode()).hexdigest()
 
 def validate_directive(value):
     keys={'decision','profile','reason_codes','confidence','exit_condition','constitutional_change'}
-    if not isinstance(value,dict) or set(value)!=keys:raise ValueError('Unknown or missing supervisory control')
-    if value['constitutional_change'] is not False:raise ValueError('Constitutional changes denied')
-    if value['decision'] not in {'NO_CHANGE','INTERVENE'} or value['profile'] not in PROFILES:
-        raise ValueError('Invalid supervisory decision/profile')
+    if not isinstance(value,dict) or set(value)!=keys:
+        raise schema_error('Unknown or missing supervisory control','maharishi.directive.schema',keys,value)
+    def reject(message, code):
+        raise ResponseContractError(message,stage='maharishi.directive.semantics',code=code)
+    if value['constitutional_change'] is not False:reject('Constitutional changes denied','constitutional_change')
+    if (not isinstance(value['decision'],str) or value['decision'] not in {'NO_CHANGE','INTERVENE'}
+            or not isinstance(value['profile'],str) or value['profile'] not in PROFILES):
+        reject('Invalid supervisory decision/profile','invalid_decision_profile')
     reasons=value['reason_codes']
-    if not isinstance(reasons,list) or len(reasons)>4 or any(not isinstance(x,str) or x not in REASONS for x in reasons) or len(reasons)!=len(set(reasons)):
-        raise ValueError('Invalid supervisory reason codes')
-    if value['confidence'] not in {'low','medium','high'} or value['exit_condition'] not in {'TTL','LEARNER_REQUESTS_CHECK'}:
-        raise ValueError('Invalid supervisory confidence/exit')
+    if not isinstance(reasons,list):reject('Invalid supervisory reason codes','reason_codes_not_list')
+    if len(reasons)>4:reject('Invalid supervisory reason codes','too_many_reason_codes')
+    if any(not isinstance(x,str) or x not in REASONS for x in reasons):reject('Invalid supervisory reason codes','unknown_reason_code')
+    if len(reasons)!=len(set(reasons)):reject('Invalid supervisory reason codes','duplicate_reason_code')
+    if (not isinstance(value['confidence'],str) or value['confidence'] not in {'low','medium','high'}
+            or not isinstance(value['exit_condition'],str) or value['exit_condition'] not in {'TTL','LEARNER_REQUESTS_CHECK'}):
+        reject('Invalid supervisory confidence/exit','invalid_confidence_exit')
     if value['decision']=='NO_CHANGE' and (value['profile']!='NORMAL' or reasons or value['exit_condition']!='TTL'):
-        raise ValueError('NO_CHANGE must preserve normal policy')
+        reject('NO_CHANGE must preserve normal policy','no_change_contradiction')
     if value['decision']=='INTERVENE' and (value['profile']=='NORMAL' or not reasons):
-        raise ValueError('Intervention needs an approved profile and reason')
+        reject('Intervention needs an approved profile and reason','intervention_without_profile_reason')
     return deepcopy(value)
 
 
@@ -183,6 +191,8 @@ def supervise(view,state,provider,store,session_id,call_id,limit=4):
     except Exception as exc:
         # Exception text may contain credentials/provider bodies. Record only class.
         audit.update(status='SUPERVISION_FAILED',error_type=type(exc).__name__,provider=deepcopy(getattr(provider,'metadata',{})))
+        if isinstance(exc,ResponseContractError):
+            audit['validation_diagnostics']=deepcopy(exc.diagnostics)
         audit['provider_calls']=audit['provider'].get('generation_requests',0)
         if set(reasons)&{'REPETITION_LOOP','HARNESS_CONFLICT','GURU_PAUSE'}:
             fallback={'decision':'INTERVENE','profile':'ORIENTATION','reason_codes':['HARNESS_CONFLICT'],

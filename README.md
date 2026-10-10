@@ -125,5 +125,7 @@ Retiring a repeated question leaves its evidence requirement unresolved.
 This is opt-in through `--maharishi` after dedicated local account/key setup. It
 retains the actual pinned Hermes/GPT-6 Luna path and adds a separate bounded
 supervisor request only when triggered. See [architecture/contract](docs/GURU-004M.md)
-and [exact Mac setup and live acceptance](docs/GURU-004M-Mac.md). Live acceptance
-remains pending; GURU-005 is blocked.
+and [targeted Mac acceptance](docs/GURU-004M-Mac.md). The supplied live run passed
+account/model verification and a real approved ORIENTATION intervention. A
+[parent-owned identity repair](docs/GURU-004M-contract.md) addresses the subsequent
+Guru schema failure. Full integrated acceptance remains pending; GURU-005 is blocked.

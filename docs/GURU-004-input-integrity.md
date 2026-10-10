@@ -88,7 +88,12 @@ a small example, normal answer admission and the complete live sequence are stil
 pending; the earlier real analogy response is accepted and must not be relabelled
 as completion of the whole sequence.
 
-## Follow-up: explanation routing (policy version 5)
+## Follow-up: explanation routing (historical policy version 5)
+
+The missing-acknowledgement rejection described below is superseded by the
+[GURU-004M optional-echo contract](GURU-004M-contract.md). All four model context
+echoes may now be omitted; supplied echoes must still match. Other representation,
+provenance and security restrictions remain enforced.
 
 Live Mac evidence verified all nine input-integrity tests and the analogy request's
 parent-constructed reference. Two additional response-contract defects prevented

@@ -1,8 +1,11 @@
 # GURU-004M v0.1 — Maharishi pedagogical supervisor
 
-Disposition: implemented and offline-verified; account verification and integrated
-live acceptance are pending. GURU-005 remains blocked. No synthetic response is
-presented as a live Guru or Maharishi response.
+Disposition: **PARTIAL PASS / BLOCKED**. The supplied live run verified the account
+and model, deterministic fallback and a real approved Claude ORIENTATION directive.
+The following Guru response failed on two missing parent identity echoes. The
+[targeted contract repair](GURU-004M-contract.md) is offline verified; full integrated
+live acceptance remains pending. GURU-005 remains blocked. Synthetic responses
+do not count as live Guru or Maharishi acceptance.
 
 ## Architecture and authority
 

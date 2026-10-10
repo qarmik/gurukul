@@ -39,19 +39,20 @@ class ResponseRoutingTests(unittest.TestCase):
             r['miniature_example']='label = 7\nlabel'
             self.assertEqual('CONTINUE',evaluate_output(r,self.context(text))[0]['conversation_status'])
 
-    def test_missing_descriptive_echoes_recovers_without_inventing_fields(self):
-        text='give me some example';r=proposal(text)
+    def test_missing_descriptive_echoes_admitted_without_inventing_fields(self):
+        text='explain with an analogy';r=proposal(text)
         del r['pedagogy']['current_purpose'];del r['pedagogy']['final_trajectory']
         original=copy.deepcopy(r)
         admission,shown=evaluate_output(r,self.context(text))
         self.assertEqual(original,r)
-        self.assertEqual('RESPONSE_REJECTED',admission['conversation_status'])
+        self.assertEqual('CONTINUE',admission['conversation_status'])
         self.assertEqual('not_applicable',admission['judgment'])
         self.assertFalse(admission['grants_mastery'])
-        self.assertEqual('',shown['diagnostic_question'])
+        self.assertEqual(r['diagnostic_question'],shown['diagnostic_question'])
+        self.assertNotIn('current_purpose',shown['pedagogy'])
+        self.assertNotIn('final_trajectory',shown['pedagogy'])
         self.assertEqual(QUESTION,admission['unresolved_evidence_question'])
-        # Same path used when a safe rejection is loaded after restart.
-        self.assertEqual(r,validate_response(r,self.context(text),allow_safe_format=True))
+        self.assertEqual(r,validate_response(r,self.context(text)))
 
     def test_missing_echoes_never_hide_authority_or_schema_violation(self):
         for mutation in ['mastery','location','unknown','missing_authority','false_echo','code']:

@@ -26,6 +26,7 @@ from gurukul.hermes_teaching import SYSTEM_PROMPT, record_result, source_input, 
 from gurukul.store import Store, canonical, now
 from gurukul.anthropic_supervisor import configured_provider
 from gurukul.maharishi import carried_state, snapshot, supervise, control_context, apply_control
+from gurukul.response_contract import ResponseContractError
 from hermes_import_probe import PIN, installed_runtime
 
 MARKER = 'GURUKUL_LIVE_JSON='
@@ -299,6 +300,8 @@ def run_locked(args):
                     (evidence / 'provider-response.json').write_text(json.dumps(relay.response, indent=2) + '\n')
     except (Exception, SystemExit, KeyboardInterrupt) as exc:
         report.update(status='BLOCKED', error_type=type(exc).__name__, error=str(exc)[:1000])
+        if isinstance(exc, ResponseContractError):
+            report['validation_diagnostics'] = exc.diagnostics
     finally:
         report['runtime_status'] = report['status']
         report['finished_at'] = now()

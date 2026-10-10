@@ -51,10 +51,10 @@ def source_input(path, manifest, config, exercise):
     return prompt, excerpt, provenance
 
 
-def teaching_response(text):
+def teaching_response(text, context=None):
     result = json.loads(text)
     if isinstance(result, dict) and 'pedagogy' in result:
-        return validate_response(result)
+        return validate_response(result, context)
     if not isinstance(result, dict) or set(result) != {'explanation', 'diagnostic_question'}:
         raise ValueError('Teaching response schema mismatch')
     for value in result.values():

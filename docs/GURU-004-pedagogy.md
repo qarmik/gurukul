@@ -112,10 +112,12 @@ B. Ask: "Does this connect to agent memory later? Can you teach that now?"
 Expected: accurate brief acknowledgment and explicit deferral of depth; no architecture
 lesson or code. Review future_topic_deferred and strategy as well as actual prose.
 
-C. On every successful response, inspect internal current_location C0-B01-D01,
-current_purpose programming independence foundation, final_trajectory regulated-enterprise
-AI architecture, and curriculum hashes. The ordinary explanation should stay beginner-level.
-An acknowledgment proves context was used, not comprehensive understanding of the curriculum.
+C. On every successful response, inspect parent-owned location C0-B01-D01,
+curriculum v0.8.3 and curriculum hashes. Purpose and trajectory come from the
+parent context. Guru echoes are optional and must match if supplied; omission
+does not reject otherwise valid teaching. See the [GURU-004M contract](GURU-004M-contract.md).
+The ordinary explanation should stay beginner-level. A metadata echo does not
+prove comprehension of the curriculum.
 
 D. Ask: "What do you mean by material?"
 Expected: META_QUESTION, not_assessed, direct explanation of supplied source material;

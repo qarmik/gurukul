@@ -120,7 +120,7 @@ class LearnerInputTests(unittest.TestCase):
                 if corrupt:stored['learner_input']['raw_input']+='invented'
                 report={'status':'PASS','call_id':call,'teaching':r,'response_sha256':digest(final),
                         'provenance':proof,'display_teaching':display,'pedagogy_admission':admission,
-                        'continuation':stored}
+                        'continuation':stored,'turn_context':self.context(text)}
                 store=Store(directory/'acceptance.sqlite3');session=store.start(EXERCISE)
                 record_result(store,call,session['id'],report);store.close()
                 (directory/'report.json').write_text(json.dumps(dict(report,parent_ledger_record_verified=True)))

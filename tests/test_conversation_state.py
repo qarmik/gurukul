@@ -94,7 +94,7 @@ class ConversationStateTests(unittest.TestCase):
                 final=canonical(r)
                 report={'status':'PASS','call_id':call,'root_call_id':root_call,'teaching':r,
                         'response_sha256':digest(final),'provenance':proof,'display_teaching':display,
-                        'pedagogy_admission':admission,'continuation':continuation}
+                        'pedagogy_admission':admission,'continuation':continuation,'turn_context':context}
                 record_result(store,call,session['id'],report)
                 (directory/'report.json').write_text(json.dumps(dict(report,parent_ledger_record_verified=True)))
                 (directory/'provider-response.json').write_text(json.dumps({'choices':[{'message':{'content':final}}]}))
