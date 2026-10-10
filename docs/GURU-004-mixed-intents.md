@@ -88,3 +88,8 @@ python3 scripts/hermes_live_teach.py --verbose --continue CALL_UUID
 Each submission uses at most one provider request. No API key is requested in chat.
 Live acceptance remains pending until all three semantic cases are reviewed. No claim
 of learner mastery follows from a successful integration or conversational judgment.
+
+
+Explanation-request routing and the narrow safe-format recovery path are extended
+by [GURU-004 explanation requests](GURU-004-explanation-requests.md). The mixed-intent
+and runtime/conversational/mastery separation remains in force.

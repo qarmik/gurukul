@@ -17,7 +17,9 @@ from uuid import uuid4
 PROJECT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT / 'src'))
 from gurukul.hermes_relay import Relay, private_key
-from gurukul.intent_admission import admit, runtime_notice
+from gurukul.intent_admission import runtime_notice
+from gurukul.teaching_output import evaluate_output
+from gurukul.terminal_text import normalize_input
 from gurukul.pedagogy import orientation, turn_context, build_prompt, validate_response
 from gurukul.hermes_continuation import load_previous, continuation_input
 from gurukul.hermes_teaching import SYSTEM_PROMPT, record_result, source_input, teaching_response
@@ -70,9 +72,9 @@ def read_answer(previous):
             answer = input('Gurukul — your answer or question (/quit to finish): ')
         except EOFError:
             raise TeachingExit()
-        if answer.strip() == '/quit':
-            raise TeachingExit()
         try:
+            if normalize_input(answer)[0].strip() == '/quit':
+                raise TeachingExit()
             return continuation_input(previous, answer)
         except ValueError as exc:
             print(str(exc) + '; please try again. No request sent.')
@@ -248,10 +250,8 @@ def run_locked(args):
                 final = worker['final_response']
                 if wire.get('finish_reason') != 'stop' or wire['message'].get('content') != final:
                     raise ValueError('Hermes final response differs from completed provider response')
-                teaching = validate_response(json.loads(final), context)
-                if 'intents' not in teaching['pedagogy']:
-                    raise ValueError('Live response missing mixed-intent schema')
-                admission, display = admit(teaching, context)
+                teaching = json.loads(final)
+                admission, display = evaluate_output(teaching, context)
                 report.update(runtime_status='PASS', pedagogy_admission=admission, display_teaching=display)
                 report.update(status='PASS', teaching=teaching, response_sha256=hashlib.sha256(final.encode()).hexdigest())
                 (evidence / 'teaching-response.json').write_text(json.dumps(teaching, indent=2) + '\n')

@@ -6,6 +6,7 @@ import sqlite3
 from uuid import UUID
 
 from gurukul.hermes_teaching import teaching_response
+from gurukul.terminal_text import normalize_input
 from gurukul.store import canonical
 
 
@@ -70,7 +71,7 @@ def load_previous(root, call_id, manifest, config, exercise):
             admitted_pedagogy = dict(payload.get('teaching', {}).get('pedagogy', {}))
             if payload.get('pedagogy_admission'):
                 admitted_pedagogy['judgment'] = payload['pedagogy_admission']['judgment']
-                if payload['pedagogy_admission']['conversation_status'] == 'NEEDS_CLARIFICATION':
+                if payload['pedagogy_admission']['conversation_status'] in ('NEEDS_CLARIFICATION', 'RESPONSE_REJECTED'):
                     admitted_pedagogy['next_activity'] = 'clarify'
             history.append({'event_id': cursor['event_id'],
                             'learner_message': payload.get('continuation', {}).get('learner_answer'),
@@ -98,22 +99,28 @@ def load_previous(root, call_id, manifest, config, exercise):
         raise ValueError('Approved source provenance changed or corrupted')
     wire = json.loads(read_local(directory / 'provider-response.json'))
     final = wire['choices'][0]['message']['content']
-    teaching = teaching_response(final)
+    if report.get('pedagogy_admission',{}).get('conversation_status') == 'RESPONSE_REJECTED':
+        from gurukul.pedagogy import validate_response
+        teaching = validate_response(json.loads(final), report.get('turn_context'), allow_safe_format=True)
+    else:
+        teaching = teaching_response(final)
     if (digest(final) != report.get('response_sha256') or teaching != report.get('teaching') or
             teaching != json.loads(read_local(directory / 'teaching-response.json'))):
         raise ValueError('Saved teaching response changed or corrupted')
     shown = dict(report.get('display_teaching', teaching))
     if report.get('pedagogy_admission'):
         shown['pedagogy'] = dict(teaching.get('pedagogy', {}), judgment=report['pedagogy_admission']['judgment'])
-        if report['pedagogy_admission']['conversation_status'] == 'NEEDS_CLARIFICATION':
+        if report['pedagogy_admission']['conversation_status'] in ('NEEDS_CLARIFICATION', 'RESPONSE_REJECTED'):
             shown['pedagogy']['next_activity'] = 'clarify'
     return {'teaching': shown, 'history': history, 'excerpt': excerpt, 'provenance': expected,
             'ledger': ledger, 'session_id': session['id'], 'root_call_id': root_id,
+            'unresolved_evidence_question': report.get('pedagogy_admission', {}).get('unresolved_evidence_question', ''),
             'parent_call_id': call_id, 'parent_event_id': event['event_id'],
             'parent_report_sha256': digest(canonical(recorded))}
 
 
 def continuation_input(previous, answer):
+    answer, input_hygiene = normalize_input(answer)
     if not isinstance(answer, str) or not answer.strip() or len(answer.encode('utf-8')) > 4000:
         raise ValueError('Answer must contain 1–4,000 UTF-8 bytes')
     answer = answer.strip()
@@ -129,7 +136,7 @@ def continuation_input(previous, answer):
               'Use explanation for feedback and diagnostic_question for one next question. '
               'Only the previous turn is supplied; do not claim recall of older exchanges.\n\n'
               'EXCHANGE JSON:\n' + canonical(context) + '\n\nAPPROVED LOCAL D01 MATERIAL:\n' + previous['excerpt'])
-    evidence = {**context, 'answer_sha256': digest(answer),
+    evidence = {**context, 'input_hygiene': input_hygiene, 'answer_sha256': digest(answer),
                 'parent_call_id': previous['parent_call_id'], 'parent_event_id': previous['parent_event_id'],
                 'parent_report_sha256': previous['parent_report_sha256']}
     return prompt, evidence

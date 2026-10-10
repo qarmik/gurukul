@@ -101,3 +101,10 @@ utterance. Parent-side admission separates provisional model judgment from runti
 success and mastery. Recoverable routing ambiguity reprompts without ending the
 session or retrying automatically. See [mixed-intent acceptance](docs/GURU-004-mixed-intents.md).
 Live acceptance remains pending; GURU-005 stays blocked.
+
+## Requests for another explanation
+
+Explanation requests now select a teaching representation without grading the pending
+answer. Safe teaching-format rejection stays recoverable, and terminal controls are
+removed before semantic evidence is stored. See [explanation-request acceptance](docs/GURU-004-explanation-requests.md).
+GURU-005 remains blocked until the real live strategy checks pass.

@@ -4,13 +4,13 @@ import hashlib
 import json
 import re
 from gurukul.store import canonical
-from gurukul.intent_admission import intent_hint, validate_intents
+from gurukul.intent_admission import intent_hint, validate_intents, explanation_request
 
 KINDS = {'ANSWER', 'QUESTION', 'CONFUSION', 'META_QUESTION', 'REQUEST_FOR_EXPLANATION', 'HYPOTHESIS', 'ATTEMPT', 'QUIT', 'CLARIFICATION', 'UNCERTAINTY'}
 CONCEPTS = {'names_values', 'literals_quotes', 'reassignment', 'variable_use'}
 STRATEGIES = {'explanation', 'analogy', 'verbal_model', 'miniature_example', 'prediction', 'counterexample', 'comparison', 'learner_example', 'variation', 'clarification', 'defer'}
 PROVENANCE = {'approved_source', 'model_general_knowledge', 'canonical_curriculum', 'verified_external_source', 'deterministic_result', 'learner_evidence'}
-POLICY_VERSION = 'd01-pedagogy-2-mixed'
+POLICY_VERSION = 'd01-pedagogy-3-explanations'
 
 SYSTEM_PROMPT = '''You are Guru, teaching a beginner. The curriculum defines WHAT is unlocked;
 use accurate general Python knowledge to explain HOW within that boundary. The book is
@@ -40,10 +40,16 @@ message_kind: one of ANSWER QUESTION CONFUSION META_QUESTION REQUEST_FOR_EXPLANA
 intents: object with primary (ANSWER QUESTION CLARIFICATION CONFUSION META_QUESTION
 REQUEST_FOR_EXPLANATION HYPOTHESIS ATTEMPT UNCERTAINTY), secondary (list of other labels),
 answer_span, question_span, clarification_span, confusion_span, uncertainty_span, meta_span,
-hypothesis_span (each an exact short verbatim substring from the learner message, or empty).
+hypothesis_span, explanation_span (each an exact short verbatim substring from the learner message, or empty).
 Use ANSWER primary for an answer mixed with clarification/question/uncertainty. Include all
 relevant secondary intents. Never invent an answer span for a pure question or pure confusion.
 An answer_span must be a declarative part answering the active question, not a quoted question.
+REQUEST_FOR_EXPLANATION is a control signal: no answer judgment unless a separate genuine
+answer exists. Follow requested_strategy in the parent hint: analogy, explanation,
+miniature_example, comparison, counterexample or verbal_model. Code is OPTIONAL; an analogy
+or prose comparison needs no code. For 'more simply' reduce complexity; do not repeat the
+same phrasing. Explain in a different representation when requested, then choose a smaller,
+simpler or equivalent check. Preserve the unresolved evidence need. Never treat no answer as wrong.
 Clarification of wording is not confusion. Acknowledge it without diagnosing a misconception.
 intent_responses: object with clarification, question, confusion (short direct responses to
 those intents, empty if absent). These will be displayed; do not duplicate them in explanation.
@@ -113,6 +119,7 @@ def classify(message):
     """Conservative local routing hint, not an authoritative semantic classifier."""
     text = message.strip().lower()
     if text == '/quit': return 'QUIT'
+    if explanation_request(message): return 'REQUEST_FOR_EXPLANATION'
     if re.search(r'what.*(material|lesson|curriculum)|why.*(asking|question)|how.*(tutor|teaching|process)', text): return 'META_QUESTION'
     if re.search(r"confus|don't understand|do not understand|lost|doesn.t make sense", text): return 'CONFUSION'
     if re.search(r'^(explain|please explain|show me|teach me)', text): return 'REQUEST_FOR_EXPLANATION'
@@ -145,7 +152,7 @@ def turn_context(orientation_data, previous, message, history):
               'previous_strategy': prior.get('strategy'),
               'rule': 'If current answer makes two correct observations for that concept, choose predict, learner_example or variation; do not ask another equivalent recall question.'}
     return {'orientation': orientation_data, 'C_turn': {'location':'C0-B01-D01', 'mode':'teaching_or_remediation',
-            'learner_message': message, 'previous_teaching': (previous or {}).get('teaching'),
+            'learner_message': message, 'unresolved_evidence_question': (previous or {}).get('unresolved_evidence_question',''), 'previous_teaching': (previous or {}).get('teaching'),
             'recent_exchanges': history, 'history_limit': 'At most 20 ancestor exchanges within 40KB; no complete recall claimed.',
             'hint_history': 'No explicit hint events in this integration harness; do not invent them.',
             'misconceptions': 'Infer only from supplied learner evidence; model judgments remain provisional.'}, 'turn_policy': policy}
@@ -158,17 +165,44 @@ def build_prompt(context, excerpt):
             + '\nAPPROVED SOURCE EXCERPT (source-specific grounding):\n' + excerpt)
 
 
-def validate_response(result, context=None):
+class PedagogicalFormatError(ValueError):
+    """Safe proposal rejected for representation, after hard checks have passed."""
+
+
+def safe_misplaced_example(prose):
+    # A narrow recoverable class, never a waiver to display rejected code.
+    if re.search(r'\b(import|exec|eval|open|compile|__import__|subprocess)\b|\b\w+\s*\(',prose):
+        return False
+    blocks=re.findall(r'```(?:python)?\s*\n?(.*?)```',prose,re.S)
+    if '```' in prose and not blocks:return False
+    for block in blocks:
+        try:
+            tree=ast.parse(block.strip())
+        except SyntaxError:return False
+        if len(tree.body)>2:return False
+        for node in tree.body:
+            if isinstance(node,ast.Assign):
+                if len(node.targets)!=1 or not isinstance(node.targets[0],ast.Name) or not isinstance(node.value,(ast.Name,ast.Constant)):return False
+            elif not isinstance(node,ast.Expr) or not isinstance(node.value,(ast.Name,ast.Constant)):return False
+    names=re.findall(r'\b([A-Za-z_]\w*)\s*=(?!=)',prose)
+    return (bool(blocks) or bool(names)) and len(names)<=2 and len(set(names))<=1
+
+
+def validate_response(result, context=None, *, allow_safe_format=False):
+    format_reasons=[]
     if set(result) != {'explanation','diagnostic_question','miniature_example','pedagogy'}:
         raise ValueError('Pedagogical response schema mismatch')
     for key in ('explanation','diagnostic_question','miniature_example'):
         if not isinstance(result[key],str) or len(result[key]) > 2500: raise ValueError('Invalid teaching text')
-    if not result['explanation'].strip() or len(result['explanation'].split()) > 180: raise ValueError('Missing or oversized explanation')
+    if not result['explanation'].strip(): raise ValueError('Missing explanation')
+    if len(result['explanation'].split()) > 180: format_reasons.append('Explanation exceeds concise teaching limit')
     extra = result.get('pedagogy',{}).get('intent_responses',{})
     if not isinstance(extra,dict) or any(not isinstance(v,str) for v in extra.values()): raise ValueError('Malformed intent responses')
     prose = result['explanation']+' '+result['diagnostic_question']+' '+' '.join(extra.values())
     if '```' in prose or re.search(r'\bprint\s*\(|\b[A-Za-z_]\w*\s*=(?!=)',prose):
-        raise ValueError('Code must be a bounded separate miniature example')
+        if not safe_misplaced_example(prose):
+            raise ValueError('Unsafe or unbounded code outside miniature example')
+        format_reasons.append('Code must be a bounded separate miniature example')
     example = result['miniature_example']
     if example:
         tree = ast.parse(example)
@@ -224,4 +258,6 @@ def validate_response(result, context=None):
         raise ValueError('Future-topic depth must be deferred')
     if p['future_topic_deferred'] and (example or p['strategy']!='defer' or len(result['explanation'].split())>100):
         raise ValueError('Future acknowledgement must remain brief and defer depth')
+    if format_reasons and not allow_safe_format:
+        raise PedagogicalFormatError('; '.join(format_reasons))
     return result
