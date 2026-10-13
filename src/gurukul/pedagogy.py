@@ -8,12 +8,13 @@ from gurukul.store import canonical
 from gurukul.learner_input import references
 from gurukul.intent_admission import intent_hint, validate_intents, explanation_request
 from gurukul.response_contract import ResponseContractError, schema_error
+from gurukul.semantic_routing import exact_control, surface_signals, validate_routing
 
-KINDS = {'ANSWER', 'QUESTION', 'CONFUSION', 'META_QUESTION', 'REQUEST_FOR_EXPLANATION', 'HYPOTHESIS', 'ATTEMPT', 'QUIT', 'CLARIFICATION', 'UNCERTAINTY'}
+KINDS = {'ANSWER', 'QUESTION', 'CONFUSION', 'META_QUESTION', 'REQUEST_FOR_EXPLANATION', 'HYPOTHESIS', 'ATTEMPT', 'QUIT', 'CLARIFICATION', 'UNCERTAINTY', 'PEDAGOGICAL_CONTROL'}
 CONCEPTS = {'names_values', 'literals_quotes', 'reassignment', 'variable_use'}
 STRATEGIES = {'explanation', 'analogy', 'verbal_model', 'miniature_example', 'prediction', 'counterexample', 'comparison', 'learner_example', 'variation', 'clarification', 'defer'}
 PROVENANCE = {'approved_source', 'model_general_knowledge', 'canonical_curriculum', 'verified_external_source', 'deterministic_result', 'learner_evidence'}
-POLICY_VERSION = 'd01-pedagogy-9-optional-echoes'
+POLICY_VERSION = 'd01-pedagogy-10-semantic-authority'
 DIAGNOSTIC_KEYS = {'message_kind','concept','judgment','strategy','next_activity',
                    'evidence_need','knowledge_classes','claim_basis','source_specific',
                    'future_topic_deferred','current_location','curriculum_version',
@@ -51,9 +52,9 @@ curriculum_version, current_purpose and final_trajectory are OPTIONAL echoes of 
 supplied parent context. If emitted, they must match that context. Gurukul separately
 binds authoritative location/version itself if omitted. All other core fields
 remain required, and unknown fields are forbidden. The contract is the same in every profile:
-message_kind: one of ANSWER QUESTION CONFUSION META_QUESTION REQUEST_FOR_EXPLANATION HYPOTHESIS ATTEMPT CLARIFICATION UNCERTAINTY;
+message_kind: one of ANSWER QUESTION CONFUSION META_QUESTION REQUEST_FOR_EXPLANATION HYPOTHESIS ATTEMPT CLARIFICATION UNCERTAINTY PEDAGOGICAL_CONTROL;
 intents: object with primary (ANSWER QUESTION CLARIFICATION CONFUSION META_QUESTION
-REQUEST_FOR_EXPLANATION HYPOTHESIS ATTEMPT UNCERTAINTY), secondary (list of other labels),
+REQUEST_FOR_EXPLANATION HYPOTHESIS ATTEMPT UNCERTAINTY PEDAGOGICAL_CONTROL), secondary (list of other labels),
 answer_span, question_span, clarification_span, confusion_span, uncertainty_span, meta_span,
 hypothesis_span, explanation_span: each is {"ref":"s0"} selecting a parent-supplied
 learner_input_references entry, or empty string if absent. Do NOT reproduce or correct learner
@@ -66,21 +67,24 @@ Use ANSWER primary for an answer mixed with clarification/question/uncertainty. 
 relevant secondary intents. Never invent an answer span for a pure question or pure confusion.
 An answer_span must be a declarative part answering the active question, not a quoted question.
 REQUEST_FOR_EXPLANATION is a control signal: no answer judgment unless a separate genuine
-answer exists. Follow requested_strategy in the parent hint: analogy, explanation,
-miniature_example, comparison, counterexample or verbal_model. A request to simplify may use
-a concise explanation, comparison or verbal_model; reduce complexity instead of repeating.
-An explicit small-example request needs an actual separate bounded miniature_example, not
-only a repeated analogy.
+answer exists. Interpret requests in context; parent surface hints have no authority.
+PEDAGOGICAL_CONTROL uses control_span and optional routing.control_action for a fresh check,
+and never supplies answer evidence. A separate genuine answer may coexist. Pausing uses the
+existing next_activity pause and approved supervisory profiles.
 Code is OPTIONAL; an analogy
 or prose comparison needs no code. For 'more simply' reduce complexity; do not repeat the
 same phrasing. Explain in a different representation when requested, then choose a smaller,
 simpler or equivalent check. Preserve the unresolved evidence need. Never treat no answer as wrong.
+Propose routing.requested_strategy when the learner requests a representation: an analogy,
+an actual bounded example, or simpler prose. A request to simplify may use a concise
+explanation, comparison or verbal_model. Mere use of words like 'simpler' in an answer
+does not request an explanation. Include routing.knowledge_task for source/curriculum,
+current-version or regulatory requests and routing.teaching_scope for future topics.
 Clarification of wording is not confusion. Acknowledge it without diagnosing a misconception.
 intent_responses: object with clarification, question, confusion (short direct responses to
-those intents, empty if absent). These will be displayed; do not duplicate them in explanation.
-Respond naturally in the main explanation; intent_responses are optional supplementary text,
-not a requirement to repeat yourself in several fields. An empty supplementary field must not
-mean ignoring the intent. Never treat a learner confirming what a question means as answering it.
+those intents, empty if absent). These are audit fields, not automatically displayed.
+The main explanation must be complete and address the relevant intents naturally.
+Never treat a learner confirming what a question means as answering it.
 Conversation repair (asking what you mean, where a question came from, or objecting to repetition)
 is not conceptual failure. Answer the concern first, use next_activity pause and an empty
 diagnostic_question when appropriate. An unresolved evidence question remains saved; do not
@@ -103,14 +107,21 @@ current_purpose: programming independence foundation (optional descriptive echo)
 final_trajectory: regulated-enterprise AI architecture (optional descriptive echo);
 grants_mastery: false;
 curriculum_observation: string (empty unless a curriculum concern needs human review).
+Optional routing: an object containing any of knowledge_task (stable_fundamentals,
+source_specific, curriculum_requirement, version_sensitive, regulatory, uncertain),
+teaching_scope (current_capability, future_acknowledgement, future_depth, uncertain),
+control_action (NONE, REQUEST_FRESH_CHECK, REQUEST_EXPLANATION),
+requested_strategy (explanation, analogy, miniature_example, comparison, counterexample,
+verbal_model). Propose actual request/claim classes, not classes suggested by isolated words.
+Uncertain interpretations preserve evidence for clarification; they never grant authority.
 If parent pedagogical_control is supplied, obey its approved profile. Suppressed grading means
 not_applicable even for an answer; suppressed questions mean an empty diagnostic_question.
 ORIENTATION addresses learner concerns/question origin before testing. REMEDIATION changes
 representation; a retired question must not reappear. Preserve underlying unmet evidence.
 The supervisor is invisible to the learner; do not narrate internal agent decisions. This profile
 cannot override curriculum, disclosure, immutable input, tool permissions or mastery restrictions.
-Diagnostics are internal and never grant permission or change requirements. Follow the parent
-turn policy on required message kind, permitted strategy and progression.''' 
+Diagnostics are internal and never grant permission or change requirements. Parent task
+metadata and approved profiles govern boundaries; surface hints remain advisory.'''
 
 
 def sha(text):
@@ -158,6 +169,7 @@ def classify(message):
     """Conservative local routing hint, not an authoritative semantic classifier."""
     text = message.strip().lower()
     if text == '/quit': return 'QUIT'
+    if exact_control(message): return 'PEDAGOGICAL_CONTROL'
     if explanation_request(message): return 'REQUEST_FOR_EXPLANATION'
     if re.search(r'what.*(material|lesson|curriculum)|why.*(asking|question)|how.*(tutor|teaching|process)', text): return 'META_QUESTION'
     if re.search(r"confus|don't understand|do not understand|lost|doesn.t make sense", text): return 'CONFUSION'
@@ -179,18 +191,15 @@ def turn_context(orientation_data, previous, message, history):
         if p.get('judgment') == 'correct' and p.get('concept') in counts:
             counts[p['concept']] += 1
     prior = (previous or {}).get('teaching', {}).get('pedagogy', {})
-    lower = message.lower()
-    knowledge_task = 'stable_fundamentals'
-    if re.search(r'\b(book|source|excerpt|page|material says)\b', lower): knowledge_task = 'source_specific'
-    if re.search(r'\b(curriculum|must i|requirement|gate|pass critical)\b', lower): knowledge_task = 'curriculum_requirement'
-    if re.search(r'\b(latest|current version|python 3\.\d+)\b', lower): knowledge_task = 'version_sensitive'
-    if re.search(r'\b(regulation|regulatory|law|legal|rbi policy)\b', lower): knowledge_task = 'regulatory'
-    policy = {'knowledge_task_hint': knowledge_task, 'message_kind_hint': kind, 'hint_origin': 'parent_heuristic', 'mixed_intent_hint': intent_hint(message),
+    policy = {'knowledge_task_hint': 'stable_fundamentals', 'surface_signals': surface_signals(message),
+              'message_kind_hint': kind, 'hint_origin': 'parent_surface_hint_no_authority', 'mixed_intent_hint': intent_hint(message),
               'model_observation_counts_not_mastery': counts,
               'saturated_concepts': [c for c,n in counts.items() if n >= 2],
               'previous_strategy': prior.get('strategy'),
               'rule': 'If current answer makes two correct observations for that concept, choose predict, learner_example or variation; do not ask another equivalent recall question.'}
-    return {'orientation': orientation_data, 'C_turn': {'location':'C0-B01-D01', 'mode':'teaching_or_remediation',
+    return {'orientation': orientation_data,
+            'task_metadata': {'default_knowledge_task': 'stable_fundamentals', 'unlocked_capability': 'C0-B01-D01'},
+            'C_turn': {'location':'C0-B01-D01', 'mode':'teaching_or_remediation',
             'learner_message': message, 'learner_input_references': references(message), 'unresolved_evidence_question': (previous or {}).get('unresolved_evidence_question',''), 'previous_teaching': (previous or {}).get('teaching'),
             'recent_exchanges': history, 'history_limit': 'At most 20 ancestor exchanges within 40KB; no complete recall claimed.',
             'hint_history': 'No explicit hint events in this integration harness; do not invent them.',
@@ -205,6 +214,7 @@ def build_prompt(context, excerpt):
                 'required_core_keys': sorted((DIAGNOSTIC_KEYS - PARENT_ECHO_KEYS - DESCRIPTIVE_KEYS) | {'intents', 'intent_responses'}),
                 'optional_parent_echoes': parent_response_authority(context),
                 'optional_descriptive_echoes': DESCRIPTIVE_ECHO_VALUES,
+                'optional_proposal_fields': ['routing'],
                 'unknown_fields': 'denied', 'profiles_share_contract': True})
             + '\nAPPROVED SOURCE EXCERPT (source-specific grounding):\n' + excerpt)
 
@@ -274,8 +284,8 @@ def validate_response(result, context=None, *, allow_safe_format=False, require_
         raise schema_error('Pedagogical response schema mismatch', 'guru.response.schema', outer_keys, result)
     p = result['pedagogy']
     mixed = require_intents or isinstance(p,dict) and 'intents' in p
-    keys = DIAGNOSTIC_KEYS | ({'intents','intent_responses'} if mixed else set())
-    optional_echoes = DESCRIPTIVE_KEYS | (PARENT_ECHO_KEYS if context is not None else set())
+    keys = DIAGNOSTIC_KEYS | {'routing'} | ({'intents','intent_responses'} if mixed else set())
+    optional_echoes = DESCRIPTIVE_KEYS | {'routing'} | (PARENT_ECHO_KEYS if context is not None else set())
     if not isinstance(p,dict) or set(p)-keys or (keys-set(p))-optional_echoes:
         raise schema_error('Pedagogical diagnostics schema mismatch', 'guru.pedagogy.schema', keys, p,
                            optional=optional_echoes)
@@ -284,6 +294,8 @@ def validate_response(result, context=None, *, allow_safe_format=False, require_
         p = result['pedagogy']
     if 'intents' in p:
         validate_intents(p)
+    if 'routing' in p:
+        validate_routing(p['routing'])
     for key in ('explanation','diagnostic_question','miniature_example'):
         if not isinstance(result[key],str) or len(result[key]) > 2500: raise ValueError('Invalid teaching text')
     if not result['explanation'].strip(): raise ValueError('Missing explanation')
@@ -323,29 +335,8 @@ def validate_response(result, context=None, *, allow_safe_format=False, require_
     if set(p['knowledge_classes']) & {'verified_external_source','deterministic_result'}:
         raise ValueError('No external verification or deterministic answer result supplied')
     if p['source_specific'] and 'approved_source' not in p['knowledge_classes']: raise ValueError('Source-specific response lacks grounding label')
-    if context:
-        policy=context['turn_policy']; kind=policy['message_kind_hint']
-        task=policy['knowledge_task_hint']
-        if task=='source_specific' and (not p['source_specific'] or 'approved_source' not in p['knowledge_classes']):
-            raise ValueError('Source-specific question requires source grounding or explicit source limitation')
-        if task=='curriculum_requirement' and 'canonical_curriculum' not in p['knowledge_classes']:
-            raise ValueError('Requirements must be attributed to canonical curriculum')
-        if task in {'version_sensitive','regulatory'} and p['strategy']!='defer':
-            raise ValueError('Current authoritative source unavailable; defer claim')
-        if 'intents' not in p and kind in {'QUESTION','META_QUESTION','CONFUSION','REQUEST_FOR_EXPLANATION'}:
-            if p['message_kind']!=kind or p['judgment']!='not_assessed': raise ValueError('Direct question/confusion must not be graded as an answer')
-        if 'intents' not in p and kind=='CONFUSION' and p['strategy']==policy['previous_strategy']: raise ValueError('Confusion requires a different explanation strategy')
-        count=policy['model_observation_counts_not_mastery'][p['concept']]+(p['judgment']=='correct')
-        if 'intents' not in p and kind in {'ANSWER','ATTEMPT','HYPOTHESIS'} and count>=2 and p['next_activity'] not in {'predict','learner_example','variation'}:
-            raise ValueError('Saturated concept requires a more demanding activity')
-        prior=[x.get('question','').strip().casefold() for x in context['C_turn']['recent_exchanges']]
-        if 'intents' not in p and result['diagnostic_question'].strip() and result['diagnostic_question'].strip().casefold() in prior:
-            raise ValueError('Repeated exact question refused')
-    # Guard obvious leaks; semantic scope still requires live review, not keyword certification.
-    if re.search(r'\b(agent|governance|formal method|inference economic|LEGB|AST|enterprise architect)',prose,re.I) and not p['future_topic_deferred']:
-        raise ValueError('Future-topic depth must be deferred')
-    if p['future_topic_deferred'] and (example or p['strategy']!='defer' or len(result['explanation'].split())>100):
-        raise ValueError('Future acknowledgement must remain brief and defer depth')
+    # Request/claim/scope semantics are evaluated after exact-span binding in admit().
+    # Legacy structural validation cannot turn a surface guess into a rejection.
     if format_reasons and not allow_safe_format:
         raise PedagogicalFormatError('; '.join(format_reasons))
     return result

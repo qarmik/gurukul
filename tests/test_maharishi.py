@@ -144,9 +144,12 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(0,provider.calls)
 
     def test_invalid_model_directive_fails_to_explicit_deterministic_fallback(self):
-        state,audit=self.decide(self.view('You are moving in loops.'),FakeProvider(dict(INTERVENE,tools=['shell'])))
+        history=[{'event_id':str(i),'question':QUESTION,
+                  'pedagogy_admission':{'answer_admitted':False,'conversation_status':'CONTINUE'}} for i in range(3)]
+        state,audit=self.decide(self.view('You are moving in loops.',history),FakeProvider(dict(INTERVENE,tools=['shell'])))
         self.assertEqual('SUPERVISION_FAILED',audit['status']);self.assertEqual('ORIENTATION',state['profile'])
         self.assertIsNone(audit['directive']);self.assertEqual('DETERMINISTIC_ORIENTATION',audit['fallback'])
+        self.assertEqual(['REPETITION_LOOP'],audit['fallback_directive']['reason_codes'])
 
     def test_provider_failure_and_budget_preserve_session(self):
         provider=FakeProvider(fail=True)

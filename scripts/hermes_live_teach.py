@@ -122,6 +122,20 @@ def conversation_loop(args, turn):
             print('Resume the last successful question with:\n' + shlex.join(command))
 
 
+def display_teaching(report):
+    """One complete explanation; secondary intent responses stay in audit evidence."""
+    shown = report.get('display_teaching', report['teaching'])
+    judgment = report.get('pedagogy_admission',{}).get('judgment', 'not_applicable')
+    print('Conversational judgment: ' + judgment + '. Mastery: not assessed.')
+    print(shown['explanation'])
+    if shown.get('miniature_example'):
+        print('Separate miniature example:\n' + shown['miniature_example'])
+    if shown['diagnostic_question']:
+        print(shown['diagnostic_question'])
+    else:
+        print('Ask a follow-up, describe your confusion, or type /quit.')
+
+
 def run_locked(args):
     if sys.platform != 'darwin':
         raise ValueError('Live isolation acceptance must run on the Mac')
@@ -351,18 +365,7 @@ def run_locked(args):
         print(runtime_notice(report) + ' Call: ' + call_id)
         print('Evidence: ' + str(evidence))
     if report['status'] == 'PASS':
-        shown = report.get('display_teaching', report['teaching'])
-        judgment = report.get('pedagogy_admission',{}).get('judgment', 'not_applicable')
-        print('Conversational judgment: ' + judgment + '. Mastery: not assessed.')
-        print(shown['explanation'])
-        for reply in shown.get('pedagogy',{}).get('intent_responses',{}).values():
-            if reply: print(reply)
-        if shown.get('miniature_example'):
-            print('Separate miniature example:\n' + shown['miniature_example'])
-        if shown['diagnostic_question']:
-            print(shown['diagnostic_question'])
-        else:
-            print('Ask a follow-up, describe your confusion, or type /quit.')
+        display_teaching(report)
     return report
 
 

@@ -5,8 +5,9 @@ import re
 from uuid import uuid4
 from gurukul.store import canonical, now
 from gurukul.response_contract import ResponseContractError, schema_error
+from gurukul.semantic_routing import exact_control
 
-VERSION='maharishi-pedagogy-v1'
+VERSION='maharishi-pedagogy-v2-structural-fallback'
 # Declarative controls only. None can alter assessment/session phase or hard policy.
 PROFILES={
     'NORMAL': {'suppress_question':False,'suppress_grading':False,'retire_question':False,
@@ -71,7 +72,7 @@ def validate_directive(value):
 
 
 def check_requested(message):
-    return bool(re.fullmatch(r'(?i)\s*(check my understanding|ask me a new question|resume the check)\s*[.!]?\s*',message))
+    return exact_control(message)=='REQUEST_FRESH_CHECK'
 
 
 def carried_state(previous,message):
@@ -93,6 +94,7 @@ def snapshot(context,state,proposal=None,admission=None):
         p=item.get('pedagogy') or {};a=item.get('pedagogy_admission') or {}
         recent.append({'event_id':item.get('event_id'),'learner':(item.get('learner_message') or '')[:1800],
                        'guru':(item.get('explanation') or '')[:1400],'question':(item.get('question') or '')[:500],
+                       'question_sha256':hashed(item['question']) if item.get('question') else None,
                        'proposal':{k:p.get(k) for k in ('concept','strategy','next_activity','judgment')},
                        'supervision':item.get('supervision'),
                        'admission':{k:a.get(k) for k in ('conversation_status','reason','answer_admitted','judgment')}})
@@ -103,19 +105,20 @@ def snapshot(context,state,proposal=None,admission=None):
         audit=item.get('supervision') or {}
         if (audit.get('directive') or {}).get('decision')=='INTERVENE' or audit.get('fallback'):
             window=recent[i+1:]
-    questions=[x['question'].strip().casefold() for x in window if x['question']]
+    questions=[x['question_sha256'] for x in window if x['question_sha256']]
     repeats=len(questions)-len(set(questions))
     recoveries=sum(x['admission']['conversation_status'] in {'NEEDS_CLARIFICATION','RESPONSE_REJECTED'} for x in window)
     view={'version':VERSION,'location':context['C_turn']['location'],
           'capability':context['orientation']['B_active']['current_objectives'],
           'evidence_requirement':context['orientation']['B_active']['required_evidence'],
           'pending_question':pending,'state':state,'recent':recent,'since_intervention_count':len(window),'learner_message':context['C_turn']['learner_message'],
-          'semantic_repeat_proxy':repeats,'routing_recoveries':recoveries,
+          'exact_question_repetitions':repeats,'routing_recoveries':recoveries,
           'hard_invariants':{'status':'unchanged','not_adaptive':list(HARD_INVARIANTS)}}
     if proposal:
         view['guru_proposal']={k:proposal['pedagogy'].get(k) for k in ('strategy','next_activity','judgment','evidence_need')}
         view['current_guru_response']={'explanation':proposal.get('explanation','')[:1400],
-                                       'question':proposal.get('diagnostic_question','')[:500]}
+                                       'question':proposal.get('diagnostic_question','')[:500],
+                                       'question_sha256':hashed(proposal['diagnostic_question']) if proposal.get('diagnostic_question') else None}
     if admission:view['current_admission']={k:admission.get(k) for k in ('conversation_status','reason','answer_admitted','judgment')}
     while view['recent'] and len(canonical(view).encode())>18000:
         view['recent'].pop(0)
@@ -123,14 +126,24 @@ def snapshot(context,state,proposal=None,admission=None):
     return view
 
 
-def triggers(view):
+def trigger_evidence(view):
+    """Separate review candidates from structural grounds for deterministic fallback."""
     text=view['learner_message'].lower();recent=view['recent'];reasons=[]
-    if check_requested(text):return []
+    if exact_control(text):return {'candidates':[], 'structural':[], 'fallback_eligible':False}
     recent=recent[-view.get('since_intervention_count',len(recent)):] if view.get('since_intervention_count',len(recent)) else []
-    if re.search(r'\b(loop|loops|looping|keep repeating|not working|explanation.*not.*work)\b',text):reasons.append('REPETITION_LOOP')
+    # Whole conversational relations, not programming vocabulary. Still only hints.
+    complaint = re.search(r'\b(?:you (?:keep|are) (?:asking|repeating).*same|we are going in circles|you are (?:just )?moving in loops)\b',text)
+    if complaint and view.get('pending_question'):reasons.append('REPETITION_LOOP')
     if re.search(r'\b(where.*question.*come|what are you talking|why.*question|why.*repeat)\b',text):reasons.append('META_QUESTION')
-    if view['routing_recoveries']>=2:reasons.append('HARNESS_CONFLICT')
-    if view['semantic_repeat_proxy']>=2:reasons.append('REPETITION_LOOP')
+    structural=[]
+    if view['routing_recoveries']>=2:structural.append('HARNESS_CONFLICT')
+    if view.get('exact_question_repetitions',0)>=2:structural.append('REPETITION_LOOP')
+    if len(recent)>=2 and all(x['proposal']['next_activity']=='pause' and x['admission']['answer_admitted'] is not True for x in recent[-2:]):
+        structural.append('GURU_PAUSE')
+    current_question_hash=view.get('current_guru_response',{}).get('question_sha256')
+    if current_question_hash and current_question_hash in view['state']['retired_questions']:
+        structural.append('REPETITION_LOOP')
+    reasons.extend(structural)
     if len(recent)>=3 and all(x['admission']['answer_admitted'] is not True for x in recent[-3:]):reasons.append('NO_EVIDENCE_YIELD')
     if len(recent)>=2 and re.search(r'\b(confused|don.t understand|what are you talking)\b',text):reasons.append('LEARNER_CONFUSION')
     last=recent[-1] if recent else None
@@ -139,7 +152,12 @@ def triggers(view):
         reasons.append('GURU_PAUSE')
     if view.get('current_admission',{}).get('conversation_status') in {'NEEDS_CLARIFICATION','RESPONSE_REJECTED'}:reasons.append('ROUTING_RECOVERY')
     if pause_needs_review and view.get('guru_proposal',{}).get('next_activity')=='pause':reasons.append('GURU_PAUSE')
-    return list(dict.fromkeys(reasons))[:4]
+    return {'candidates':list(dict.fromkeys(reasons))[:4], 'structural':list(dict.fromkeys(structural)),
+            'fallback_eligible':bool(structural)}
+
+
+def triggers(view):
+    return trigger_evidence(view)['candidates']
 
 
 def select_state(state,directive,pending):
@@ -172,10 +190,11 @@ def supervise(view,state,provider,store,session_id,call_id,limit=4):
     session=store.db.execute('SELECT phase,status FROM sessions WHERE id=?',(session_id,)).fetchone()
     if not session or session['status']!='active' or session['phase'] not in ('teaching','remediation'):
         raise ValueError('Supervision cannot run during assessment or inactive sessions')
-    reasons=triggers(view)
+    evidence=trigger_evidence(view);reasons=evidence['candidates']
     audit={'version':VERSION,'trigger':reasons,'recent_state_sha256':hashed(view),'recent_event_refs':[x['event_id'] for x in view['recent']],
            'previous_profile':state['profile'],'status':'NOT_INVOKED','provider':None,'directive':None,
-           'hard_controls_not_changeable':list(HARD_INVARIANTS),'request_reservations':0,'provider_calls':0}
+           'hard_controls_not_changeable':list(HARD_INVARIANTS),'request_reservations':0,'provider_calls':0,
+           'trigger_evidence':evidence}
     if not reasons or state['remaining_turns']>0:
         audit.update(new_profile=state['profile'],controls=deepcopy(PROFILES[state['profile']]),state=deepcopy(state))
         return state,audit
@@ -194,8 +213,8 @@ def supervise(view,state,provider,store,session_id,call_id,limit=4):
         if isinstance(exc,ResponseContractError):
             audit['validation_diagnostics']=deepcopy(exc.diagnostics)
         audit['provider_calls']=audit['provider'].get('generation_requests',0)
-        if set(reasons)&{'REPETITION_LOOP','HARNESS_CONFLICT','GURU_PAUSE'}:
-            fallback={'decision':'INTERVENE','profile':'ORIENTATION','reason_codes':['HARNESS_CONFLICT'],
+        if evidence['fallback_eligible']:
+            fallback={'decision':'INTERVENE','profile':'ORIENTATION','reason_codes':evidence['structural'][:4],
                       'confidence':'low','exit_condition':'TTL','constitutional_change':False}
             state=select_state(state,fallback,view['pending_question'])
             audit['fallback']='DETERMINISTIC_ORIENTATION';audit['fallback_directive']=fallback

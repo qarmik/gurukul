@@ -2,15 +2,17 @@
 import re
 from copy import deepcopy
 from gurukul.learner_input import resolve, digest
+from gurukul.semantic_routing import exact_control, route_proposal, route_concerns
 
-INTENTS = {'ANSWER','QUESTION','CLARIFICATION','CONFUSION','META_QUESTION','REQUEST_FOR_EXPLANATION','HYPOTHESIS','ATTEMPT','UNCERTAINTY'}
+INTENTS = {'ANSWER','QUESTION','CLARIFICATION','CONFUSION','META_QUESTION','REQUEST_FOR_EXPLANATION','HYPOTHESIS','ATTEMPT','UNCERTAINTY','PEDAGOGICAL_CONTROL'}
 SPANS = {'answer_span':'ANSWER','question_span':'QUESTION','clarification_span':'CLARIFICATION',
-         'confusion_span':'CONFUSION','uncertainty_span':'UNCERTAINTY','meta_span':'META_QUESTION','hypothesis_span':'HYPOTHESIS','explanation_span':'REQUEST_FOR_EXPLANATION'}
+         'confusion_span':'CONFUSION','uncertainty_span':'UNCERTAINTY','meta_span':'META_QUESTION','hypothesis_span':'HYPOTHESIS','explanation_span':'REQUEST_FOR_EXPLANATION','control_span':'PEDAGOGICAL_CONTROL'}
 
 
 def explanation_request(message):
+    """A strategy hint only; admission never consumes this guess as a requirement."""
     text=message.lower()
-    requested=bool(re.search(r"\b(explain|give me (?:an?|some) (analogy|examples?|small examples?)|show me|simpler|simplify|more simply|walk me through|compare it|don't understand.*explanation|do not understand.*explanation)\b",text))
+    requested=bool(re.search(r"\b(explain|give me (?:an?|some) (analogy|examples?|small examples?)|show me|simplify|more simply|walk me through|compare it|don't understand.*explanation|do not understand.*explanation)\b",text))
     if not requested:return None
     for pattern,strategy in [(r'analogy','analogy'),(r'counterexample','counterexample'),
                               (r'compar','comparison'),(r'example','miniature_example'),
@@ -20,10 +22,11 @@ def explanation_request(message):
 
 
 def candidate_answers(message):
-    """Conservative surface admission: declarative segments, not semantic correctness."""
+    """Legacy advisory segments; never used to admit or reject learner evidence."""
+    if exact_control(message):return []
     if re.match(r'(?i)^(so )?(you are asking|are you asking|do you mean)\b',message.strip()) and message.rstrip().endswith('?'):
         return []
-    segments=re.split(r'(?<=[.!?;])\s+|\n+|\s+(?=(?:why|what|how|can you|could you)\b)',message,flags=re.I)
+    segments=re.split(r'(?<=[.!?;])\s+|\n+|\s+but\s+|\s+(?=(?:why|what|how|can you|could you)\b)',message,flags=re.I)
     result=[]
     for segment in segments:
         text=segment.strip()
@@ -39,6 +42,7 @@ def candidate_answers(message):
 
 def intent_hint(message):
     kinds=[]
+    if exact_control(message):kinds.append('PEDAGOGICAL_CONTROL')
     if candidate_answers(message):kinds.append('ANSWER')
     if explanation_request(message):kinds.append('REQUEST_FOR_EXPLANATION')
     for pattern,kind in [(r'\?|\b(what|why|how)\b','QUESTION'),
@@ -55,6 +59,7 @@ def validate_intents(p):
     value=p['intents']
     expected={'primary','secondary',*SPANS}
     if isinstance(value,dict) and 'explanation_span' not in value:expected.remove('explanation_span')
+    if isinstance(value,dict) and 'control_span' not in value:expected.remove('control_span')
     if not isinstance(value,dict) or set(value)!=expected:
         raise ValueError('Mixed-intent schema mismatch')
     if value['primary'] not in INTENTS or not isinstance(value['secondary'],list) or any(not isinstance(x,str) or x not in INTENTS for x in value['secondary']):
@@ -72,7 +77,7 @@ def validate_intents(p):
 
 
 def admit(result, context):
-    """Called only AFTER all structural/security/source/scope checks succeed."""
+    """Bind source spans, then review semantic proposals; never certify correctness."""
     original=result
     result=deepcopy(result)
     p=result['pedagogy']; intents=p['intents']; message=context['C_turn']['learner_message']
@@ -90,21 +95,35 @@ def admit(result, context):
     controls=context.get('pedagogical_control',{}).get('controls',{})
     reason=None
     observations=[]
+    command=exact_control(message)
+    if command and not reference_error:
+        # Parent-derived command interpretation is separate from raw model interpretation.
+        intents=dict(primary='PEDAGOGICAL_CONTROL',secondary=[],**dict.fromkeys(SPANS,''))
+        intents['control_span'],binding=resolve({'ref':'s0'},message)
+        verified={'control_span':dict(binding,text=message)}
+        p['intents']=intents
+        labels={'PEDAGOGICAL_CONTROL'};spans=intents
+        p.update(message_kind='PEDAGOGICAL_CONTROL',judgment='not_applicable')
+        observations.append('Exact learner command interpreted by the parent; no answer evidence')
     for field,kind in SPANS.items():
         quote=spans.get(field,'')
         if quote and (quote not in message or kind not in labels):reason='Intent evidence is not bound to the learner message'
     for field,kind in SPANS.items():
         if kind in labels and not spans.get(field,''):reason='Intent label lacks an exact evidence span'
-    if '?' in message and not (spans['question_span'] or spans['meta_span']):reason='Learner question must be retained and answered'
     answer=spans['answer_span']
-    eligible=bool(active_question and answer and (any(answer in segment for segment in candidate_answers(message)) or (answer == message and candidate_answers(message) and '?' not in message and not explanation_request(message))))
+    nonanswer_overlap=bool(answer and any(answer in spans.get(field,'') for field in
+                          ('question_span','meta_span','explanation_span','control_span',
+                           'confusion_span','clarification_span') if spans.get(field)))
+    eligible=bool(active_question and answer and 'ANSWER' in labels and not nonanswer_overlap and not command and not reference_error)
     if 'ANSWER' in labels and not eligible:
         observations.append('Proposed answer intent was not admitted; no independent answer content')
     if answer and 'ANSWER' not in labels:reason='Answer span has no answer intent'
     if p['judgment'] not in {'not_applicable','not_assessed'} and not eligible:reason='No independently admissible answer span'
     if eligible and not controls.get('suppress_grading') and p['judgment'] in {'not_applicable','not_assessed'}:reason='Answer content requires an explicit conversational judgment'
-    hint=intent_hint(message)
-    requested=hint['requested_strategy']
+    route=route_proposal(p,context,spans)
+    concerns=route_concerns(route,result)
+    if concerns:reason=concerns[0]
+    requested=route['requested_strategy']
     if requested and not controls.get('strategy_flexible'):
         if 'REQUEST_FOR_EXPLANATION' not in labels or not spans.get('explanation_span'):
             reason='Explanation request needs explicit routing'
@@ -116,13 +135,9 @@ def admit(result, context):
             reason='Simplification needs a concise changed explanation'
         if requested=='miniature_example' and not result['miniature_example'].strip():
             reason='Requested example was not supplied'
-    if 'CLARIFICATION' in hint['possible_intents'] and not spans['clarification_span']:
-        reason='Clarification needs acknowledgment rather than a confusion label'
     for field,reply in [('clarification_span','clarification'),('question_span','question'),('meta_span','question'),('confusion_span','confusion')]:
         if spans[field] and not p['intent_responses'][reply].strip():
             observations.append('Secondary intent may be addressed in the main explanation: '+reply)
-    if not eligible and hint['candidate_answer_segments'] and active_question and p['judgment']!='not_applicable':
-        reason='Unresolved answer admission'
     if spans['confusion_span'] and result['explanation'].strip()==prior.get('explanation','').strip():
         reason='Repeated explanation did not address confusion'
     count=context['turn_policy']['model_observation_counts_not_mastery'][p['concept']]+(eligible and p['judgment']=='correct')
@@ -130,27 +145,31 @@ def admit(result, context):
         reason='More demanding representation needed'
     if eligible and p['judgment']=='correct' and prior.get('pedagogy',{}).get('next_activity')=='variation' and p['next_activity']=='variation':
         reason='Successful variation should advance representation, not another synonym variation'
-    questions=[x.get('question','').strip().casefold() for x in context['C_turn']['recent_exchanges']]
-    if eligible and result['diagnostic_question'].strip() and result['diagnostic_question'].strip().casefold() in questions:
+    questions=[digest(x.get('question','')) for x in context['C_turn']['recent_exchanges'] if x.get('question')]
+    if eligible and result['diagnostic_question'] and digest(result['diagnostic_question']) in questions:
         reason='Equivalent exact question needs replacement'
     evidence={'learner_input_sha256':digest(message),'learner_verified_spans':verified,
               'model_interpretation':deepcopy(original['pedagogy']['intents']),
               'model_judgment_proposal':original['pedagogy']['judgment'],
-              'conversation_observations':observations,'admission_policy':'separate-display-evidence-v1'}
+              'conversation_observations':observations,'admission_policy':'bound-semantic-proposals-v2',
+              'semantic_route':route,
+              'learner_control':{'kind':'PEDAGOGICAL_CONTROL','action':route['control_action'],
+                                 'origin':route['control_origin'],'bound':route['control_bound']} if route['control_action']!='NONE' else None}
     if reference_error:
         reason='Interpretation reference rejected: '+reference_error
     if reason:
         display={'explanation':'The proposed response could not be admitted. Your message and the unresolved learning question are saved, and your answer has not been marked wrong. You can ask for a different explanation or continue when ready.',
                  'diagnostic_question':'','miniature_example':''}
         return {**evidence,'conversation_status':'NEEDS_CLARIFICATION','judgment':'not_applicable','answer_admitted':False,
-                'reason':reason,'intents':intents,'unresolved_evidence_question':active_question,'pending_question':active_question,'question_displayed':False,'grants_mastery':False},display
+                'reason':reason,'failure_class':'SEMANTIC_UNCERTAINTY','validation_stage':'semantic_admission',
+                'intents':intents,'unresolved_evidence_question':active_question,'pending_question':active_question,'question_displayed':False,'grants_mastery':False},display
     # Pending evidence is not a command to repeat its question on every turn.
     # Safe ungraded discussion may answer, clarify or pause without a new check.
     display=result
     if p['next_activity']=='pause':
         display=dict(result,diagnostic_question='')
     return {**evidence,'conversation_status':'CONTINUE','judgment':'not_applicable' if not eligible else p['judgment'],
-            'answer_admitted':eligible,'reason':'Exact learner span bound to active question; correctness remains a model observation',
+            'answer_admitted':eligible,'reason':'Exact learner span bound to active question; correctness remains a model observation' if eligible else 'No conceptual answer admitted; unresolved evidence retained',
             'intents':intents,'pending_question':display['diagnostic_question'] or active_question,
             'question_displayed':bool(display['diagnostic_question']),
             'unresolved_evidence_question':active_question if not eligible else '',

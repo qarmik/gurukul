@@ -21,6 +21,7 @@ def proposal(message,strategy='analogy'):
     r['miniature_example']=''
     spans=dict.fromkeys(SPANS,'');spans['explanation_span']=message
     r['pedagogy'].update(message_kind='REQUEST_FOR_EXPLANATION',judgment='not_applicable',strategy=strategy,
+        routing={'control_action':'REQUEST_EXPLANATION','requested_strategy':intent_hint(message)['requested_strategy'] or 'explanation'},
         intents=dict(primary='REQUEST_FOR_EXPLANATION',secondary=[],**spans),
         intent_responses={'clarification':'','question':'','confusion':''})
     return r

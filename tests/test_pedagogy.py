@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 import unittest
 from gurukul.pedagogy import orientation, turn_context, build_prompt, validate_response, classify
+from gurukul.teaching_output import evaluate_output
 
 ROOT=Path(__file__).resolve().parents[1]
 EXERCISE=json.loads((ROOT/'content/c0_b01/d01.json').read_text())
@@ -52,13 +53,20 @@ class PedagogyTests(unittest.TestCase):
         self.assertEqual(response(),validate_response(response(),self.context))
 
     def test_future_depth_guard_and_brief_deferral(self):
-        r=response();r['explanation']='An agent has tools and governance controls.'
-        with self.assertRaises(ValueError):validate_response(r,self.context)
+        from test_mixed_intents import proposal
+        text='Can you teach agent design now?'
+        context=turn_context(self.orientation,None,text,[])
+        r=proposal(question=text);r['explanation']='An agent has tools and governance controls.'
+        r['pedagogy']['routing']={'teaching_scope':'future_depth'}
+        admission,shown=evaluate_output(r,context)
+        self.assertEqual('NEEDS_CLARIFICATION',admission['conversation_status'])
+        self.assertNotEqual(r['explanation'],shown['explanation'])
         r['explanation']='Agents belong to a later stage. We will defer their design and focus on names and values now.'
         r['pedagogy'].update(future_topic_deferred=True,strategy='defer')
-        validate_response(r,self.context)
+        r['pedagogy']['routing']['teaching_scope']='future_acknowledgement'
+        self.assertEqual('CONTINUE',evaluate_output(r,context)[0]['conversation_status'])
         r['miniature_example']='x = 1'
-        with self.assertRaises(ValueError):validate_response(r,self.context)
+        self.assertEqual('NEEDS_CLARIFICATION',evaluate_output(r,context)[0]['conversation_status'])
 
     def test_source_specific_and_unverified_external_provenance(self):
         r=response();r['pedagogy']['source_specific']=True
@@ -68,13 +76,18 @@ class PedagogyTests(unittest.TestCase):
         with self.assertRaises(ValueError):validate_response(r,self.context)
 
     def test_claim_class_routing_requires_matching_authority(self):
+        from test_mixed_intents import proposal
         for message,expected in [('What does the book say?', 'source_specific'),
                                  ('What does the curriculum require?', 'curriculum_requirement'),
                                  ('What is the latest Python version?', 'version_sensitive'),
                                  ('What does this regulation require?', 'regulatory')]:
             context=turn_context(self.orientation,None,message,[])
-            self.assertEqual(expected,context['turn_policy']['knowledge_task_hint'])
-            with self.assertRaises(ValueError):validate_response(response(),context)
+            self.assertIn(expected,context['turn_policy']['surface_signals']['candidates'])
+            self.assertEqual('none',context['turn_policy']['surface_signals']['authority'])
+            r=proposal(question=message);r['pedagogy']['routing']={'knowledge_task':expected}
+            self.assertEqual('NEEDS_CLARIFICATION',evaluate_output(r,context)[0]['conversation_status'])
+            r['pedagogy']['strategy']='defer';r['diagnostic_question']=''
+            self.assertEqual('CONTINUE',evaluate_output(r,context)[0]['conversation_status'])
 
     def test_no_mastery_curriculum_change_or_unknown_fields(self):
         for update in [{'grants_mastery':True},{'current_location':'C1'},{'curriculum_version':'new'},{'unlock_stage':'C1'}]:
@@ -82,33 +95,43 @@ class PedagogyTests(unittest.TestCase):
             with self.subTest(update=update),self.assertRaises(ValueError):validate_response(r,self.context)
 
     def test_question_classification_interrupts_grading(self):
+        from test_mixed_intents import proposal
         cases={'What do you mean by material?':'META_QUESTION','Why is Rohit unquoted?':'QUESTION',
                'I am confused':'CONFUSION','Explain assignment':'REQUEST_FOR_EXPLANATION',
                'I think it is a box':'HYPOTHESIS','x = 3':'ATTEMPT','the last value':'ANSWER','/quit':'QUIT'}
         for text,kind in cases.items():self.assertEqual(kind,classify(text))
         context=turn_context(self.orientation,None,'What do you mean by material?',[])
-        with self.assertRaises(ValueError):validate_response(response(),context)
-        r=response();r['pedagogy'].update(message_kind='META_QUESTION',judgment='not_assessed');r['diagnostic_question']=''
-        validate_response(r,context)
+        r=proposal(answer='material',question='What do you mean by material?')
+        self.assertEqual('NEEDS_CLARIFICATION',evaluate_output(r,context)[0]['conversation_status'])
+        r=proposal(question='What do you mean by material?');r['diagnostic_question']=''
+        admission,_=evaluate_output(r,context)
+        self.assertEqual('CONTINUE',admission['conversation_status'])
+        self.assertEqual('not_applicable',admission['judgment'])
 
     def test_two_correct_observations_require_progression(self):
+        from test_mixed_intents import proposal, QUESTION
         history=[{'pedagogy':{'concept':'names_values','judgment':'correct'}}]
-        context=turn_context(self.orientation,None,'a name',history)
-        r=response();r['pedagogy']['next_activity']='clarify'
-        with self.assertRaises(ValueError):validate_response(r,context)
-        r['pedagogy']['next_activity']='predict';validate_response(r,context)
+        context=turn_context(self.orientation,{'teaching':{'diagnostic_question':QUESTION}},'a name',history)
+        r=proposal(answer='a name');r['pedagogy']['next_activity']='clarify'
+        self.assertEqual('NEEDS_CLARIFICATION',evaluate_output(r,context)[0]['conversation_status'])
+        r['pedagogy']['next_activity']='predict'
+        self.assertEqual('CONTINUE',evaluate_output(r,context)[0]['conversation_status'])
         self.assertEqual(1,context['turn_policy']['model_observation_counts_not_mastery']['names_values'])
 
     def test_exact_repeat_question_refused(self):
-        context=turn_context(self.orientation,None,'a name',[{'question':response()['diagnostic_question']}])
-        with self.assertRaises(ValueError):validate_response(response(),context)
+        from test_mixed_intents import proposal, QUESTION
+        r=proposal(answer='a name')
+        context=turn_context(self.orientation,{'teaching':{'diagnostic_question':QUESTION}},'a name',[{'question':r['diagnostic_question']}])
+        self.assertEqual('NEEDS_CLARIFICATION',evaluate_output(r,context)[0]['conversation_status'])
 
     def test_confusion_changes_explanation_strategy(self):
-        previous={'teaching':{'pedagogy':{'strategy':'explanation'}}}
+        from test_mixed_intents import proposal
+        previous={'teaching':{'explanation':'Prior explanation','pedagogy':{'strategy':'explanation'}}}
         context=turn_context(self.orientation,previous,'I am confused',[])
-        r=response();r['pedagogy'].update(message_kind='CONFUSION',judgment='not_assessed')
-        with self.assertRaises(ValueError):validate_response(r,context)
-        r['pedagogy']['strategy']='comparison';validate_response(r,context)
+        r=proposal(confusion='I am confused');r['explanation']='Prior explanation'
+        self.assertEqual('NEEDS_CLARIFICATION',evaluate_output(r,context)[0]['conversation_status'])
+        r['explanation']='Use a label to refer to a value. Quoted text is already a value.'
+        self.assertEqual('CONTINUE',evaluate_output(r,context)[0]['conversation_status'])
 
     def test_miniature_example_cannot_be_full_solution_or_executable_tools(self):
         r=response();r['miniature_example']='score = 8\nscore';validate_response(r,self.context)

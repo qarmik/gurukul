@@ -52,9 +52,9 @@ class SupervisedContractTests(unittest.TestCase):
         self.store.close()
         self.tmp.cleanup()
 
-    def supervise(self, directive=DIRECTIVE, text=None):
+    def supervise(self, directive=DIRECTIVE, text=None, history=None):
         adapter = AnthropicSupervisor(self.config, self.root / 'unused-key')
-        context = self.context if text is None else turn_context(self.orientation, self.previous, text, [])
+        context = self.context if text is None else turn_context(self.orientation, self.previous, text, history or [])
         state = carried_state(None, '')
         def transport(method, path, body):
             self.assertEqual(('POST', '/v1/messages'), (method, path))
@@ -200,7 +200,7 @@ class SupervisedContractTests(unittest.TestCase):
         info = error.exception.diagnostics
         self.assertEqual('guru.pedagogy.schema', info['validation_stage'])
         self.assertEqual(['evidence_need'], info['missing_keys'])
-        self.assertEqual(sorted(PARENT_ECHO_KEYS | DESCRIPTIVE_KEYS), info['optional_keys'])
+        self.assertEqual(sorted(PARENT_ECHO_KEYS | DESCRIPTIVE_KEYS | {'routing'}), info['optional_keys'])
         self.assertEqual(1, len(info['extra_keys']))
         self.assertTrue(info['extra_keys'][0].startswith('<key-sha256:'))
         self.assertNotIn('secret-looking-token!', canonical(info))
@@ -209,7 +209,9 @@ class SupervisedContractTests(unittest.TestCase):
 
     def test_rejected_http_200_directive_has_safe_diagnostics_and_same_fallback(self):
         invalid = dict(DIRECTIVE, tools=['private tool text'])
-        state, audit = self.supervise(invalid, 'you are just moving in loops')
+        history=[{'event_id':str(i),'question':QUESTION,
+                  'pedagogy_admission':{'answer_admitted':False,'conversation_status':'CONTINUE'}} for i in range(3)]
+        state, audit = self.supervise(invalid, 'you are just moving in loops', history)
         self.assertEqual('SUPERVISION_FAILED', audit['status'])
         self.assertEqual('DETERMINISTIC_ORIENTATION', audit['fallback'])
         self.assertEqual('ORIENTATION', state['profile'])
