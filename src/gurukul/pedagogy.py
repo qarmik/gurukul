@@ -14,7 +14,7 @@ KINDS = {'ANSWER', 'QUESTION', 'CONFUSION', 'META_QUESTION', 'REQUEST_FOR_EXPLAN
 CONCEPTS = {'names_values', 'literals_quotes', 'reassignment', 'variable_use'}
 STRATEGIES = {'explanation', 'analogy', 'verbal_model', 'miniature_example', 'prediction', 'counterexample', 'comparison', 'learner_example', 'variation', 'clarification', 'defer'}
 PROVENANCE = {'approved_source', 'model_general_knowledge', 'canonical_curriculum', 'verified_external_source', 'deterministic_result', 'learner_evidence'}
-POLICY_VERSION = 'd01-pedagogy-11-control-contract'
+POLICY_VERSION = 'd01-pedagogy-12-check-trajectory'
 DIAGNOSTIC_KEYS = {'message_kind','concept','judgment','strategy','next_activity',
                    'evidence_need','knowledge_classes','claim_basis','source_specific',
                    'future_topic_deferred','current_location','curriculum_version',
@@ -191,6 +191,29 @@ def classify(message):
     return 'ANSWER'
 
 
+def requested_check_active(previous, history):
+    """Follow parent-admitted question links, never surface hints or raw labels."""
+    pending = ''
+    for item in history:
+        admission = item.get('pedagogy_admission') or {}
+        control = admission.get('learner_control') or {}
+        if control.get('action') == 'REQUEST_FRESH_CHECK':
+            pending = (item.get('question') or '') if (
+                control.get('bound') is True
+                and admission.get('conversation_status') == 'CONTINUE'
+                and admission.get('question_displayed') is True) else ''
+        elif pending:
+            if (item.get('question_answered') != pending
+                    or admission.get('requested_check_completed')
+                    or admission.get('answer_admitted') is True and admission.get('judgment') == 'correct'):
+                pending = ''
+            else:
+                pending = item.get('question') or admission.get('pending_question', '')
+    current = ((previous or {}).get('teaching', {}).get('diagnostic_question')
+               or (previous or {}).get('unresolved_evidence_question', ''))
+    return bool(pending and pending == current)
+
+
 def turn_context(orientation_data, previous, message, history):
     history = list(history[-20:])
     while history and len(canonical(history).encode()) > 40000:
@@ -203,17 +226,12 @@ def turn_context(orientation_data, previous, message, history):
             counts[p['concept']] += 1
     prior = (previous or {}).get('teaching', {}).get('pedagogy', {})
     command = exact_control(message)
-    last = history[-1] if history else {}
-    last_control = (last.get('pedagogy_admission') or {}).get('learner_control') or {}
-    requested_check_active = bool(last_control.get('action') == 'REQUEST_FRESH_CHECK'
-                                  and last.get('question')
-                                  and last['question'] == (previous or {}).get('teaching', {}).get('diagnostic_question'))
     policy = {'knowledge_task_hint': 'stable_fundamentals', 'surface_signals': surface_signals(message),
               'message_kind_hint': kind, 'hint_origin': 'parent_surface_hint_no_authority', 'mixed_intent_hint': intent_hint(message),
               'model_observation_counts_not_mastery': counts,
               'saturated_concepts': [c for c,n in counts.items() if n >= 2],
               'previous_strategy': prior.get('strategy'),
-              'requested_check_active': requested_check_active,
+              'requested_check_active': requested_check_active(previous, history),
               'rule': 'If current answer makes two correct observations for that concept, choose predict, learner_example or variation; do not ask another equivalent recall question.'}
     context = {'orientation': orientation_data,
             'task_metadata': {'default_knowledge_task': 'stable_fundamentals', 'unlocked_capability': 'C0-B01-D01'},

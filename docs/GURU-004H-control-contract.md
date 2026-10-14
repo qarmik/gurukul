@@ -1,5 +1,10 @@
 # GURU-004H follow-up — fresh-check and conversation contract repair
 
+The later live fresh-check/partial-answer/correct-answer sequence and its narrow
+parent-state follow-up are recorded in
+[requested-check trajectory evidence and repair](GURU-004H-check-trajectory.md).
+The disposition below describes the original follow-up verification.
+
 Disposition: **offline PASS; integrated live acceptance pending**. GURU-005
 remains **BLOCKED**. Baseline: `90547167bc9052940c052845a5a9574c935888c9`.
 Curriculum v0.8.3, source hashes, assessment, provider/runtime isolation,

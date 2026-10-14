@@ -260,13 +260,111 @@ class ControlContractTests(unittest.TestCase):
         self.assertEqual('teaching',self.store.resume()['session']['phase'])
 
     def test_partial_requested_check_answer_can_still_request_missing_evidence(self):
-        history=[{'question':QUESTION,'pedagogy_admission':{'learner_control':{'action':'REQUEST_FRESH_CHECK'}}}]
+        history=[{'question':QUESTION,'pedagogy_admission':{'conversation_status':'CONTINUE',
+                 'question_displayed':True,'learner_control':{'action':'REQUEST_FRESH_CHECK','bound':True}}}]
         context=turn_context(self.orientation,self.previous,'I think the earlier value.',history)
         self.assertTrue(context['turn_policy']['requested_check_active'])
         r=proposal(answer='I think the earlier value.');r['pedagogy']['judgment']='partial'
         a,shown=evaluate_output(r,context)
         self.assertTrue(a['answer_admitted']);self.assertFalse(a['requested_check_completed'])
         self.assertTrue(shown['diagnostic_question'])
+
+    def start_requested_check(self):
+        request='check my understanding';r=proposal(question=request)
+        r['diagnostic_question']='Predict: if a name refers to 4, then is reassigned to 9, what value will printing that name show afterward, and why?'
+        r['pedagogy'].update(concept='reassignment',strategy='prediction',next_activity='predict')
+        context=turn_context(self.orientation,self.previous,request,[])
+        a,shown=evaluate_output(r,context);self.save(r,a,shown,context)
+        return load_previous(self.root,self.root_call,self.manifest,self.config,EXERCISE)
+
+    def save_partial_check_answer(self,previous):
+        answer='9 because it is the first value the variable will look for on running the code'
+        r=proposal(answer=answer);r['pedagogy']['intents']['answer_span']={'ref':'s0'}
+        r['diagnostic_question']='Now suppose the name is reassigned from 9 to 4 before it is printed. What will printing it show, and what changed?'
+        r['pedagogy'].update(concept='reassignment',judgment='partial',strategy='variation',next_activity='variation')
+        context=turn_context(self.orientation,previous,answer,previous['history'])
+        a,shown=evaluate_output(r,context)
+        self.assertEqual('CONTINUE',a['conversation_status']);self.assertTrue(a['answer_admitted'])
+        self.assertFalse(a['requested_check_completed']);self.assertTrue(shown['diagnostic_question'])
+        call=str(uuid4());self.save(r,a,shown,context,previous,call)
+        return load_previous(self.root,call,self.manifest,self.config,EXERCISE)
+
+    def test_requested_check_survives_partial_followup_and_closes_after_correct_answer(self):
+        previous=self.save_partial_check_answer(self.start_requested_check())
+        answer='the value would change to 4 because it has been reassigned'
+        context=turn_context(self.orientation,previous,answer,previous['history'])
+        self.assertTrue(context['turn_policy']['requested_check_active'])
+        r=proposal(answer=answer);r['pedagogy'].update(concept='reassignment',strategy='variation',next_activity='variation')
+        r['diagnostic_question']='Explain quoted and unquoted text again.';original=copy.deepcopy(r)
+        a,shown=evaluate_output(r,context)
+        self.assertEqual('CONTINUE',a['conversation_status']);self.assertTrue(a['answer_admitted'])
+        self.assertTrue(a['requested_check_completed']);self.assertEqual('',a['pending_question'])
+        self.assertEqual('',a['unresolved_evidence_question']);self.assertEqual('',shown['diagnostic_question'])
+        self.assertEqual('pause',shown['pedagogy']['next_activity']);self.assertEqual(original,r)
+        verify_admission(a,answer);self.assertFalse(a['grants_mastery']);self.assertIn('source file',a['unmet_evidence_requirement'])
+        call=str(uuid4());self.save(r,a,shown,context,previous,call)
+        loaded=load_previous(self.root,call,self.manifest,self.config,EXERCISE)
+        self.assertEqual('',loaded['teaching']['diagnostic_question']);self.assertEqual('',loaded['unresolved_evidence_question'])
+        self.assertEqual('pause',loaded['history'][-1]['pedagogy']['next_activity'])
+        self.assertFalse(turn_context(self.orientation,loaded,'What evidence is required?',loaded['history'])['turn_policy']['requested_check_active'])
+        self.assertEqual('teaching',self.store.resume()['session']['phase'])
+
+    def test_correct_followup_pause_clears_the_answered_pending_question(self):
+        previous=self.save_partial_check_answer(self.start_requested_check())
+        answer='the value would change to 4 because it has been reassigned'
+        context=turn_context(self.orientation,previous,answer,previous['history'])
+        r=proposal(answer=answer);r['diagnostic_question']=''
+        r['pedagogy'].update(concept='reassignment',strategy='clarification',next_activity='pause')
+        a,shown=evaluate_output(r,context)
+        self.assertEqual('CONTINUE',a['conversation_status']);self.assertTrue(a['requested_check_completed'])
+        self.assertEqual('',a['pending_question']);self.assertEqual('',a['unresolved_evidence_question'])
+        self.assertEqual('',shown['diagnostic_question']);self.assertFalse(a['grants_mastery'])
+
+    def test_requested_check_survives_ungraded_clarification_without_a_new_question(self):
+        previous=self.start_requested_check();question='What changed when it was reassigned?'
+        r=proposal(question=question);r['diagnostic_question']='';r['pedagogy'].update(strategy='clarification',next_activity='pause')
+        context=turn_context(self.orientation,previous,question,previous['history']);a,shown=evaluate_output(r,context)
+        self.assertFalse(a['answer_admitted']);self.assertEqual('CONTINUE',a['conversation_status'])
+        call=str(uuid4());self.save(r,a,shown,context,previous,call)
+        loaded=load_previous(self.root,call,self.manifest,self.config,EXERCISE)
+        answer='The name now refers to 9.';context=turn_context(self.orientation,loaded,answer,loaded['history'])
+        self.assertTrue(context['turn_policy']['requested_check_active'])
+        a,shown=evaluate_output(proposal(answer=answer),context)
+        self.assertTrue(a['requested_check_completed']);self.assertEqual('',shown['diagnostic_question'])
+
+    def test_requested_check_survives_reference_recovery_without_false_completion(self):
+        previous=self.start_requested_check();answer='The name refers to 9.'
+        r=proposal(answer=answer);r['pedagogy']['intents']['answer_span']={'ref':'missing'}
+        context=turn_context(self.orientation,previous,answer,previous['history']);a,shown=evaluate_output(r,context)
+        self.assertEqual('NEEDS_CLARIFICATION',a['conversation_status']);self.assertFalse(a['answer_admitted'])
+        call=str(uuid4());self.save(r,a,shown,context,previous,call)
+        loaded=load_previous(self.root,call,self.manifest,self.config,EXERCISE)
+        context=turn_context(self.orientation,loaded,answer,loaded['history'])
+        self.assertTrue(context['turn_policy']['requested_check_active'])
+        a,shown=evaluate_output(proposal(answer=answer),context)
+        self.assertTrue(a['requested_check_completed']);self.assertEqual('',shown['diagnostic_question'])
+
+    def test_requested_check_does_not_attach_to_an_unlinked_followup(self):
+        previous=self.save_partial_check_answer(self.start_requested_check())
+        for changed in ['question_answered','active_question','missing_origin']:
+            with self.subTest(changed=changed):
+                prior=copy.deepcopy(previous);history=prior['history']
+                if changed=='question_answered':history[-1]['question_answered']='Unrelated question.'
+                if changed=='active_question':prior['teaching']['diagnostic_question']='Unrelated question.'
+                if changed=='missing_origin':history.pop(0)
+                context=turn_context(self.orientation,prior,'It refers to 4.',history)
+                self.assertFalse(context['turn_policy']['requested_check_active'])
+
+    def test_unbound_or_rejected_control_cannot_start_a_requested_check_trajectory(self):
+        previous=self.start_requested_check()
+        for changed in ['unbound','rejected','not_displayed']:
+            with self.subTest(changed=changed):
+                history=copy.deepcopy(previous['history']);admission=history[-1]['pedagogy_admission']
+                if changed=='unbound':admission['learner_control']['bound']=False
+                if changed=='rejected':admission['conversation_status']='NEEDS_CLARIFICATION'
+                if changed=='not_displayed':admission['question_displayed']=False
+                context=turn_context(self.orientation,previous,'It refers to 9.',history)
+                self.assertFalse(context['turn_policy']['requested_check_active'])
 
     def test_recovery_display_shows_feedback_and_one_notice_without_duplicate_replies(self):
         r=self.fixture('e34db245');a,shown=evaluate_output(r,self.context('e34db245'))
