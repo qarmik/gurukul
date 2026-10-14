@@ -1,8 +1,10 @@
 # GURU-004H — requested-check follow-up state
 
-Disposition: **scoped live behavior PASS; parent-state repair offline PASS**.
-The new policy has not been run on the learner's Mac. GURU-005 remains
-**BLOCKED**. Repair baseline: `7a334a2063bb1f93dd6a44405d8daeb0ab31f7c9`.
+Disposition: **scoped live behavior PASS; parent-state automated verification
+PASS on Linux and macOS**. The Mac verification below ran at repair commit
+`f2f94be1cbed076503ad7ff405f40cb40fa71bd8`. No new live inference under the repaired
+policy is claimed. GURU-005 remains **BLOCKED**. Repair baseline:
+`7a334a2063bb1f93dd6a44405d8daeb0ab31f7c9`.
 
 ## Supplied live evidence
 
@@ -118,24 +120,38 @@ Changed files: `src/gurukul/pedagogy.py`, `tests/test_control_contract.py`, this
 report, `docs/GURU-004H-trajectory-verification.txt`, and the follow-up link in
 `docs/GURU-004H-control-contract.md`. GURU-005 remains blocked.
 
-## Next Mac verification — G004H-TRAJECTORY-VERIFY
+## Mac verification — G004H-TRAJECTORY-VERIFY — PASS
 
-Objective: synchronize the repair and verify its persisted control-chain tests.
-Budget: 20 minutes; no new live generation is required for this step.
+On 2026-10-14 the learner supplied the complete Mac terminal result for:
 
-1. Exit the teaching prompt with `/quit` if it is still open.
-2. At the shell, run:
+```sh
+cd /Users/qarmik/Documents/GitHub/gurukul &&
+git pull --ff-only &&
+git rev-parse --short HEAD &&
+PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_control_contract.py' -v
+```
 
-   ```sh
-   cd /Users/qarmik/Documents/GitHub/gurukul
-   git pull --ff-only
-   git rev-parse HEAD
-   PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_control_contract.py' -v
-   ```
+The pull fast-forwarded `7a334a2..f2f94be`, the printed revision was `f2f94be`,
+and all 29 named test entries ended in `ok`. Exact result summary:
 
-3. Share the revision and test output. Retain live final call
-   `b6840d25-7dbb-4074-8eab-dae9477cc2ea` as the supplied live evidence.
+```text
+----------------------------------------------------------------------
+Ran 29 tests in 0.177s
 
-Done: the published repair revision and all 29 tests passing on the Mac.
-Required proof: terminal revision and the complete test result. This confirms
-the repair's local execution and does not unblock GURU-005 or grant mastery.
+OK
+```
+
+This is learner-supplied Mac execution evidence, not a local Linux rerun. It
+meets this micro-task's done criteria, including the partial-answer chain,
+clarification/recovery, pending-question closure and persisted restart tests.
+The earlier live final call remains
+`b6840d25-7dbb-4074-8eab-dae9477cc2ea`; no new paid inference was requested.
+The receipt update changes documentation only, so it does not require another
+code-test cycle.
+
+The GURU-004H build is ready for architect review with the initial
+[semantic authority audit](GURU-004H.md), the
+[control-contract repair](GURU-004H-control-contract.md), and this trajectory
+repair and Mac receipt. The limited live teaching coverage and earlier
+submission-process/supervisor findings above remain explicit. This verification
+does not grant mastery or unblock GURU-005.
