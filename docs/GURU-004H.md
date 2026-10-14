@@ -1,9 +1,12 @@
 # GURU-004H — semantic heuristic authority audit and minimal repair
 
-The subsequent Mac run exposed a fresh-check/nesting failure and an overly rigid
-future-acknowledgment check. See the [exact five-response follow-up](GURU-004H-control-contract.md)
-and its current targeted live procedure. The original verification below remains
-historical evidence; full integrated acceptance and GURU-005 remain blocked.
+Architect_4 accepted the completed GURU-004H scoped repair on 2026-10-14.
+See the [recorded decision and final verification](GURU-004H-check-trajectory.md).
+The subsequent repairs are documented in the
+[exact five-response follow-up](GURU-004H-control-contract.md) and the requested-check
+trajectory report. The original disposition and verification below remain
+historical evidence. Broader integrated live acceptance is not asserted;
+GURU-005 remains **BLOCKED**.
 
 Disposition: **offline PASS; integrated live acceptance pending**. GURU-005
 remains **BLOCKED**. This increment changes only the confirmed semantic-routing,

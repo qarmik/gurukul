@@ -1,5 +1,10 @@
 # GURU-004H — requested-check follow-up state
 
+Architect disposition: **PASS — GURU-004H scoped repair accepted for its stated
+boundary**, supplied by the learner on 2026-10-14. No further GURU-004H repair
+requirement was imposed. The recorded decision is below. GURU-005 remains
+**BLOCKED**.
+
 Disposition: **scoped live behavior PASS; parent-state automated verification
 PASS on Linux and macOS**. The Mac verification below ran at repair commit
 `f2f94be1cbed076503ad7ff405f40cb40fa71bd8`. No new live inference under the repaired
@@ -149,9 +154,31 @@ The earlier live final call remains
 The receipt update changes documentation only, so it does not require another
 code-test cycle.
 
-The GURU-004H build is ready for architect review with the initial
-[semantic authority audit](GURU-004H.md), the
-[control-contract repair](GURU-004H-control-contract.md), and this trajectory
-repair and Mac receipt. The limited live teaching coverage and earlier
-submission-process/supervisor findings above remain explicit. This verification
-does not grant mastery or unblock GURU-005.
+## Architect decision — G004H-HANDOFF — ACCEPTED
+
+On 2026-10-14 the learner supplied Architect_4's decision after review of the
+GitHub evidence report, repair commit and documentation commit:
+
+> PASS — GURU-004H scoped repair accepted for its stated boundary.
+
+Accepted evidence:
+
+- Repair commit: `f2f94be1cbed076503ad7ff405f40cb40fa71bd8`.
+- Reviewed documentation commit: `ec8401cf97cc7160799dc6564b2d28fb88bdc9a3`.
+- Mac verification: `Ran 29 tests in 0.177s`, `OK`.
+- Linux full suite: `235 tests`, `OK (skipped=1)`.
+
+The architect accepted that the `latest assigned value` lexical-authority failure
+was addressed and that the requested-check trajectory repair is appropriately
+bounded by parent-verified history and admitted question links. No further
+GURU-004H repair requirement was imposed.
+
+The decision grants no mastery, progression, curriculum unlock, provider
+permission or GURU-005 authority. Limited live coverage, no new paid inference
+under the repaired policy and the earlier supervisor/submission-process findings
+remain explicit; their scope is not expanded by this acceptance.
+
+The [initial audit](GURU-004H.md), [control-contract follow-up](GURU-004H-control-contract.md)
+and this report form the accepted GURU-004H record. The scoped build and handoff
+are closed. **GURU-005 remains BLOCKED.** This closing update changes
+documentation only and requires no additional test run or paid model call.

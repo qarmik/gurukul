@@ -3,7 +3,9 @@
 The later live fresh-check/partial-answer/correct-answer sequence and its narrow
 parent-state follow-up are recorded in
 [requested-check trajectory evidence and repair](GURU-004H-check-trajectory.md).
-The disposition below describes the original follow-up verification.
+That report also records Architect_4's acceptance of the completed scoped repair
+on 2026-10-14. The disposition below describes the original follow-up verification;
+GURU-005 remains **BLOCKED**.
 
 Disposition: **offline PASS; integrated live acceptance pending**. GURU-005
 remains **BLOCKED**. Baseline: `90547167bc9052940c052845a5a9574c935888c9`.
