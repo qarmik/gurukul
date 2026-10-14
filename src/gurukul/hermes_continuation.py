@@ -75,12 +75,20 @@ def load_previous(root, call_id, manifest, config, exercise):
                 if payload.get('pedagogy_admission') or 'pedagogy' in payload.get('teaching', {}):
                     verify_admission(payload.get('pedagogy_admission', {}), continuation['learner_answer'])
             teaching_item = payload.get('display_teaching', payload.get('teaching', {}))
-            admitted_pedagogy = dict(payload.get('teaching', {}).get('pedagogy', {}))
+            from gurukul.pedagogy import normalize_response_layout, response_layout_binding
+            history_proposal = payload.get('teaching', {})
+            layout = payload.get('pedagogy_admission', {}).get('response_layout_binding')
+            if layout is not None and layout != response_layout_binding(history_proposal):
+                raise ValueError('Saved history layout binding changed or corrupted')
+            normalized_history, _ = normalize_response_layout(history_proposal)
+            admitted_pedagogy = dict(normalized_history.get('pedagogy', {}))
             if payload.get('pedagogy_admission'):
                 admitted_pedagogy['intents'] = payload['pedagogy_admission'].get('intents', {})
                 admitted_pedagogy['judgment'] = payload['pedagogy_admission']['judgment']
                 if payload['pedagogy_admission']['conversation_status'] in ('NEEDS_CLARIFICATION', 'RESPONSE_REJECTED'):
                     admitted_pedagogy['next_activity'] = 'clarify'
+                if payload['pedagogy_admission'].get('requested_check_completed'):
+                    admitted_pedagogy['next_activity'] = 'pause'
             history.append({'event_id': cursor['event_id'],
                             'learner_message': payload.get('continuation', {}).get('learner_answer'),
                             'question_answered': payload.get('continuation', {}).get('question_answered'),
@@ -124,11 +132,19 @@ def load_previous(root, call_id, manifest, config, exercise):
         from gurukul.pedagogy import response_authority_binding
         if binding != response_authority_binding(raw_teaching, report.get('turn_context')):
             raise ValueError('Saved response authority binding changed or corrupted')
+    layout_binding = report.get('pedagogy_admission',{}).get('response_layout_binding')
+    if layout_binding is not None:
+        from gurukul.pedagogy import response_layout_binding
+        if layout_binding != response_layout_binding(raw_teaching):
+            raise ValueError('Saved response layout binding changed or corrupted')
     shown = dict(report.get('display_teaching', teaching))
     if report.get('pedagogy_admission'):
         shown['pedagogy'] = dict(teaching.get('pedagogy', {}), judgment=report['pedagogy_admission']['judgment'], intents=report['pedagogy_admission'].get('intents', {}))
         if report['pedagogy_admission']['conversation_status'] in ('NEEDS_CLARIFICATION', 'RESPONSE_REJECTED'):
             shown['pedagogy']['next_activity'] = 'clarify'
+            shown['diagnostic_question'] = ''
+        if report['pedagogy_admission'].get('requested_check_completed'):
+            shown['pedagogy']['next_activity'] = 'pause'
             shown['diagnostic_question'] = ''
     return {'teaching': shown, 'history': history, 'excerpt': excerpt, 'provenance': expected,
             'ledger': ledger, 'session_id': session['id'], 'root_call_id': root_id,

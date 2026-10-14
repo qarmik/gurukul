@@ -1,6 +1,16 @@
 """Hard validation precedes recoverable output rejection; never retries inference."""
-from gurukul.pedagogy import validate_response, PedagogicalFormatError, response_authority_binding
+from copy import deepcopy
+from gurukul.pedagogy import validate_response, PedagogicalFormatError, response_authority_binding, response_layout_binding
 from gurukul.intent_admission import admit, intent_hint
+
+
+def bind_proposal_evidence(admission, proposal, context):
+    admission['response_authority_binding'] = response_authority_binding(proposal,context)
+    layout = response_layout_binding(proposal)
+    if layout:
+        admission['response_layout_binding'] = layout
+        admission['model_interpretation'] = deepcopy(proposal['pedagogy']['intents'])
+    return admission
 
 
 def evaluate_output(proposal, context):
@@ -22,9 +32,8 @@ def evaluate_output(proposal, context):
                    'response_authority_binding':response_authority_binding(proposal,context)}
         shown={'explanation':'The Guru response did not satisfy the teaching-response policy. Your request has been preserved and was not graded. Please submit it again or ask another question. No automatic retry was made.',
                'diagnostic_question':'','miniature_example':''}
-        return admission,shown
+        return bind_proposal_evidence(admission,proposal,context),shown
     if 'intents' not in proposal['pedagogy']:
         raise ValueError('Live response missing mixed-intent schema')
     admission,display = admit(validated,context)
-    admission['response_authority_binding'] = response_authority_binding(proposal,context)
-    return admission,display
+    return bind_proposal_evidence(admission,proposal,context),display

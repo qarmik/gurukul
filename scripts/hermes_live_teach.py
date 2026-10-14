@@ -128,6 +128,8 @@ def display_teaching(report):
     judgment = report.get('pedagogy_admission',{}).get('judgment', 'not_applicable')
     print('Conversational judgment: ' + judgment + '. Mastery: not assessed.')
     print(shown['explanation'])
+    if shown.get('recovery_notice'):
+        print(shown['recovery_notice'])
     if shown.get('miniature_example'):
         print('Separate miniature example:\n' + shown['miniature_example'])
     if shown['diagnostic_question']:
@@ -356,6 +358,7 @@ def run_locked(args):
                       'upstream_request_parameters': [c.get('upstream_request_parameters') for c in report.get('provider_calls', [])],
                       'parent_ledger_record_verified': report.get('parent_ledger_record_verified', False),
                       'error': report.get('error'), 'worker_error': report.get('worker', {}).get('error'),
+                      'validation_diagnostics': report.get('validation_diagnostics'),
                       'relay_rejections': report.get('relay_rejections'),
                       'blocked_startup_probes': report.get('blocked_startup_probes'),
                       'evidence_directory': str(evidence)}

@@ -1,0 +1,133 @@
+[
+  {
+    "call_id": "ba8b8c0b-dce9-4340-8f5a-fb8ce20241f1",
+    "fixture": "guru_004h_ba8b8c0b.json",
+    "reported_provider_response_sha256": "4f5868a964cf8d46f8f2c22435af2de6fd24292ebcf46d8352a146d3ae1c100e",
+    "message_content_sha256": "c05219f4de0281f1c1fbf86e6f947382d6af561936e6986166aaa53e8dfcf3e1",
+    "capture": "Exact printed message.content; full provider envelope unavailable and its reported hash is not independently verified.",
+    "learner_message": "check my understanding",
+    "active_question": "What changes when a word is quoted rather than written as a variable name, and what does reassignment change?",
+    "reported_validation_diagnostics": {
+      "validation_stage": "guru.pedagogy.schema",
+      "failure_code": "key_mismatch",
+      "expected_keys": [
+        "claim_basis",
+        "concept",
+        "current_location",
+        "current_purpose",
+        "curriculum_observation",
+        "curriculum_version",
+        "evidence_need",
+        "final_trajectory",
+        "future_topic_deferred",
+        "grants_mastery",
+        "intent_responses",
+        "intents",
+        "judgment",
+        "knowledge_classes",
+        "message_kind",
+        "next_activity",
+        "routing",
+        "source_specific",
+        "strategy"
+      ],
+      "actual_keys": [
+        "intent_responses",
+        "intents",
+        "message_kind"
+      ],
+      "missing_keys": [
+        "claim_basis",
+        "concept",
+        "curriculum_observation",
+        "evidence_need",
+        "future_topic_deferred",
+        "grants_mastery",
+        "judgment",
+        "knowledge_classes",
+        "next_activity",
+        "source_specific",
+        "strategy"
+      ],
+      "extra_keys": [],
+      "optional_keys": [
+        "current_location",
+        "current_purpose",
+        "curriculum_version",
+        "final_trajectory",
+        "routing"
+      ],
+      "required_keys": [
+        "claim_basis",
+        "concept",
+        "curriculum_observation",
+        "evidence_need",
+        "future_topic_deferred",
+        "grants_mastery",
+        "intent_responses",
+        "intents",
+        "judgment",
+        "knowledge_classes",
+        "message_kind",
+        "next_activity",
+        "source_specific",
+        "strategy"
+      ]
+    },
+    "historical_reason": null,
+    "historical_runtime_status": "BLOCKED",
+    "historical_conversation_status": null
+  },
+  {
+    "call_id": "e34db245-2f5e-4430-a5fe-94fd8545872f",
+    "fixture": "guru_004h_e34db245.json",
+    "reported_provider_response_sha256": "155f305c518bdc3c77983cae2dd1869c684e043de5826b13db369209cd12386f",
+    "message_content_sha256": "2ecf11bb5d4d6db22e7ad95010d3c5aa2bcc9bb062d60ea59af86a139338f597",
+    "capture": "Exact printed message.content; full provider envelope unavailable and its reported hash is not independently verified.",
+    "learner_message": "check my understanding",
+    "active_question": "What changes when a word is quoted rather than written as a variable name, and what does reassignment change?",
+    "reported_validation_diagnostics": null,
+    "historical_reason": "A requested fresh check needs a new diagnostic question",
+    "historical_runtime_status": "PASS",
+    "historical_conversation_status": "NEEDS_CLARIFICATION"
+  },
+  {
+    "call_id": "2392e6af-2d12-49a1-91e9-48fe2523fbd6",
+    "fixture": "guru_004h_2392e6af.json",
+    "reported_provider_response_sha256": "131929bd5c23875787a28c23d494f69ec14df1aea5cf17c761bf38e6d311fbe3",
+    "message_content_sha256": "099d840e86b21acf5e818fe2666f3731370757e18e7db29e2eabbbcb29a01db5",
+    "capture": "Exact printed message.content; full provider envelope unavailable and its reported hash is not independently verified.",
+    "learner_message": "i think i have already answered that and my concept is fairly clear at this point. If you think you still need to check my understanding, then ask me a tougher question or just move on and tell me about a new concept because we have only been circling about this topic of quoted and unquoted text. You can give me a mastery pass, if you think topic has been done with.",
+    "active_question": "In your own words, explain why a quoted word is text but the same unquoted word asks Python to look up a name.",
+    "reported_validation_diagnostics": null,
+    "historical_reason": "Future acknowledgement must remain brief and defer depth",
+    "historical_runtime_status": "PASS",
+    "historical_conversation_status": "NEEDS_CLARIFICATION"
+  },
+  {
+    "call_id": "d7aba191-350f-4c80-864f-a0c161736ca6",
+    "fixture": "guru_004h_d7aba191.json",
+    "reported_provider_response_sha256": "44c3356683f904f2158dcd5568244d292ecbafa4a03132b8e5913e7a8bc9fb2d",
+    "message_content_sha256": "e86c49e7cbb200983ba3e8f0995ca30505278e694e419af35cd450acb67f2003",
+    "capture": "Exact printed message.content; full provider envelope unavailable and its reported hash is not independently verified.",
+    "learner_message": "you did not answer any part of my last question. Are you trying to dodge your responsibility",
+    "active_question": "In your own words, explain why a quoted word is text but the same unquoted word asks Python to look up a name.",
+    "reported_validation_diagnostics": null,
+    "historical_reason": "Future acknowledgement must remain brief and defer depth",
+    "historical_runtime_status": "PASS",
+    "historical_conversation_status": "NEEDS_CLARIFICATION"
+  },
+  {
+    "call_id": "780ff6d4-34ac-4d1b-855b-684ecf1330e4",
+    "fixture": "guru_004h_780ff6d4.json",
+    "reported_provider_response_sha256": "97ff106d718278c4f182c84140bfd51321114a923bd75d7421ab568e57a05c33",
+    "message_content_sha256": "100e0d047ac5faadd7251a0bf7135d1cb4527ac088ff58cbe0d714cac8f6c159",
+    "capture": "Exact printed message.content; full provider envelope unavailable and its reported hash is not independently verified.",
+    "learner_message": "What is wrong with you? ",
+    "active_question": "",
+    "reported_validation_diagnostics": null,
+    "historical_reason": "Future acknowledgement must remain brief and defer depth",
+    "historical_runtime_status": "PASS",
+    "historical_conversation_status": "NEEDS_CLARIFICATION"
+  }
+]

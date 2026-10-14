@@ -105,6 +105,13 @@ def admit(result, context):
         labels={'PEDAGOGICAL_CONTROL'};spans=intents
         p.update(message_kind='PEDAGOGICAL_CONTROL',judgment='not_applicable')
         observations.append('Exact learner command interpreted by the parent; no answer evidence')
+    if ('PEDAGOGICAL_CONTROL' in intents['secondary'] and not spans.get('control_span')
+            and p.get('routing', {}).get('control_action', 'NONE') == 'NONE'):
+        # An unsupported secondary label has no action/evidence authority. Keep the
+        # source proposal in the audit; do not invent a control span to satisfy it.
+        intents['secondary'] = [x for x in intents['secondary'] if x != 'PEDAGOGICAL_CONTROL']
+        labels.discard('PEDAGOGICAL_CONTROL')
+        observations.append('Unbound secondary control label not admitted; raw model proposal retained')
     for field,kind in SPANS.items():
         quote=spans.get(field,'')
         if quote and (quote not in message or kind not in labels):reason='Intent evidence is not bound to the learner message'
@@ -115,6 +122,8 @@ def admit(result, context):
                           ('question_span','meta_span','explanation_span','control_span',
                            'confusion_span','clarification_span') if spans.get(field)))
     eligible=bool(active_question and answer and 'ANSWER' in labels and not nonanswer_overlap and not command and not reference_error)
+    completed_requested_check=bool(eligible and p['judgment']=='correct' and
+                                   context['turn_policy'].get('requested_check_active'))
     if 'ANSWER' in labels and not eligible:
         observations.append('Proposed answer intent was not admitted; no independent answer content')
     if answer and 'ANSWER' not in labels:reason='Answer span has no answer intent'
@@ -141,12 +150,12 @@ def admit(result, context):
     if spans['confusion_span'] and result['explanation'].strip()==prior.get('explanation','').strip():
         reason='Repeated explanation did not address confusion'
     count=context['turn_policy']['model_observation_counts_not_mastery'][p['concept']]+(eligible and p['judgment']=='correct')
-    if eligible and count>=2 and p['next_activity'] not in {'predict','learner_example','variation'}:
+    if eligible and not completed_requested_check and count>=2 and p['next_activity'] not in {'predict','learner_example','variation'}:
         reason='More demanding representation needed'
-    if eligible and p['judgment']=='correct' and prior.get('pedagogy',{}).get('next_activity')=='variation' and p['next_activity']=='variation':
+    if eligible and not completed_requested_check and p['judgment']=='correct' and prior.get('pedagogy',{}).get('next_activity')=='variation' and p['next_activity']=='variation':
         reason='Successful variation should advance representation, not another synonym variation'
     questions=[digest(x.get('question','')) for x in context['C_turn']['recent_exchanges'] if x.get('question')]
-    if eligible and result['diagnostic_question'] and digest(result['diagnostic_question']) in questions:
+    if eligible and not completed_requested_check and result['diagnostic_question'] and digest(result['diagnostic_question']) in questions:
         reason='Equivalent exact question needs replacement'
     evidence={'learner_input_sha256':digest(message),'learner_verified_spans':verified,
               'model_interpretation':deepcopy(original['pedagogy']['intents']),
@@ -158,22 +167,31 @@ def admit(result, context):
     if reference_error:
         reason='Interpretation reference rejected: '+reference_error
     if reason:
-        display={'explanation':'The proposed response could not be admitted. Your message and the unresolved learning question are saved, and your answer has not been marked wrong. You can ask for a different explanation or continue when ready.',
-                 'diagnostic_question':'','miniature_example':''}
+        if reason == 'A requested fresh check needs a new diagnostic question' and not reference_error and concerns == [reason]:
+            display=dict(result,diagnostic_question='',recovery_notice='Your check request is saved, but Guru did not supply a new question. This turn stays ungraded.')
+        else:
+            display={'explanation':'The proposed response could not be admitted. Your message and the unresolved learning question are saved, and your answer has not been marked wrong. You can ask for a different explanation or continue when ready.',
+                     'diagnostic_question':'','miniature_example':''}
         return {**evidence,'conversation_status':'NEEDS_CLARIFICATION','judgment':'not_applicable','answer_admitted':False,
                 'reason':reason,'failure_class':'SEMANTIC_UNCERTAINTY','validation_stage':'semantic_admission',
                 'intents':intents,'unresolved_evidence_question':active_question,'pending_question':active_question,'question_displayed':False,'grants_mastery':False},display
     # Pending evidence is not a command to repeat its question on every turn.
     # Safe ungraded discussion may answer, clarify or pause without a new check.
     display=result
-    if p['next_activity']=='pause':
+    if completed_requested_check:
+        observations.append('Requested check answered; further unsolicited question suppressed, independent evidence still unresolved')
+        display=deepcopy(result);display['diagnostic_question']='';display['pedagogy']['next_activity']='pause'
+    elif p['next_activity']=='pause':
         display=dict(result,diagnostic_question='')
     return {**evidence,'conversation_status':'CONTINUE','judgment':'not_applicable' if not eligible else p['judgment'],
             'answer_admitted':eligible,'reason':'Exact learner span bound to active question; correctness remains a model observation' if eligible else 'No conceptual answer admitted; unresolved evidence retained',
-            'intents':intents,'pending_question':display['diagnostic_question'] or active_question,
+            'intents':intents,'pending_question':'' if completed_requested_check else display['diagnostic_question'] or active_question,
             'question_displayed':bool(display['diagnostic_question']),
             'unresolved_evidence_question':active_question if not eligible else '',
-            'requested_strategy':requested,'unmet_evidence_requirement':p['evidence_need'],'grants_mastery':False},display
+            'requested_check_completed':completed_requested_check,
+            'requested_strategy':requested,'unmet_evidence_requirement':
+                'Independent exercise evidence still required: '+', '.join(context['orientation']['B_active']['required_evidence'])
+                if completed_requested_check else p['evidence_need'],'grants_mastery':False},display
 
 
 def runtime_notice(report):

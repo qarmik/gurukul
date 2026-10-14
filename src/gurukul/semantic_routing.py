@@ -66,8 +66,7 @@ def route_proposal(p, context, intents):
             'claim_source_specific': p['source_specific'],
             'claim_knowledge_classes': list(p['knowledge_classes']),
             'bound_interpretation_spans': [key for key, value in intents.items() if key.endswith('_span') and value],
-            'teaching_scope': proposed.get('teaching_scope',
-                'future_acknowledgement' if p['future_topic_deferred'] else 'current_capability'),
+            'teaching_scope': proposed.get('teaching_scope', 'current_capability'),
             'control_action': action, 'control_bound': control_bound,
             'control_origin': 'exact_command' if command else 'model_semantic_proposal',
             'requested_strategy': None if command else proposed.get('requested_strategy'),
@@ -90,8 +89,7 @@ def route_concerns(route, result):
     if scope == 'future_depth':
         concerns.append('Teaching depth exceeds the unlocked capability')
     if scope == 'future_acknowledgement' and (
-            not p['future_topic_deferred'] or p['strategy'] != 'defer' or
-            result['miniature_example'] or len(result['explanation'].split()) > 100):
+            not p['future_topic_deferred'] or result['miniature_example']):
         concerns.append('Future acknowledgement must remain brief and defer depth')
     if route['control_action'] != 'NONE' and not route['control_bound']:
         concerns.append('Pedagogical control lacks a bound learner span')

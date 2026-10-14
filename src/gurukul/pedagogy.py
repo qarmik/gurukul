@@ -6,7 +6,7 @@ import json
 import re
 from gurukul.store import canonical
 from gurukul.learner_input import references
-from gurukul.intent_admission import intent_hint, validate_intents, explanation_request
+from gurukul.intent_admission import intent_hint, validate_intents, explanation_request, SPANS
 from gurukul.response_contract import ResponseContractError, schema_error
 from gurukul.semantic_routing import exact_control, surface_signals, validate_routing
 
@@ -14,7 +14,7 @@ KINDS = {'ANSWER', 'QUESTION', 'CONFUSION', 'META_QUESTION', 'REQUEST_FOR_EXPLAN
 CONCEPTS = {'names_values', 'literals_quotes', 'reassignment', 'variable_use'}
 STRATEGIES = {'explanation', 'analogy', 'verbal_model', 'miniature_example', 'prediction', 'counterexample', 'comparison', 'learner_example', 'variation', 'clarification', 'defer'}
 PROVENANCE = {'approved_source', 'model_general_knowledge', 'canonical_curriculum', 'verified_external_source', 'deterministic_result', 'learner_evidence'}
-POLICY_VERSION = 'd01-pedagogy-10-semantic-authority'
+POLICY_VERSION = 'd01-pedagogy-11-control-contract'
 DIAGNOSTIC_KEYS = {'message_kind','concept','judgment','strategy','next_activity',
                    'evidence_need','knowledge_classes','claim_basis','source_specific',
                    'future_topic_deferred','current_location','curriculum_version',
@@ -56,7 +56,7 @@ message_kind: one of ANSWER QUESTION CONFUSION META_QUESTION REQUEST_FOR_EXPLANA
 intents: object with primary (ANSWER QUESTION CLARIFICATION CONFUSION META_QUESTION
 REQUEST_FOR_EXPLANATION HYPOTHESIS ATTEMPT UNCERTAINTY PEDAGOGICAL_CONTROL), secondary (list of other labels),
 answer_span, question_span, clarification_span, confusion_span, uncertainty_span, meta_span,
-hypothesis_span, explanation_span: each is {"ref":"s0"} selecting a parent-supplied
+hypothesis_span, explanation_span, control_span: each is {"ref":"s0"} selecting a parent-supplied
 learner_input_references entry, or empty string if absent. Do NOT reproduce or correct learner
 text in these fields. For a narrower span use {"start":0,"end":5}, zero-based Unicode code-point
 indices with exclusive end, only when certain. Prefer supplied references. s0 is the entire input.
@@ -83,6 +83,9 @@ current-version or regulatory requests and routing.teaching_scope for future top
 Clarification of wording is not confusion. Acknowledge it without diagnosing a misconception.
 intent_responses: object with clarification, question, confusion (short direct responses to
 those intents, empty if absent). These are audit fields, not automatically displayed.
+This object contains ONLY those three reply strings. control_span belongs inside intents.
+Concept, judgment, strategy, next_activity and all other diagnostics are direct pedagogy
+children, alongside intents and intent_responses. routing is also a direct pedagogy child.
 The main explanation must be complete and address the relevant intents naturally.
 Never treat a learner confirming what a question means as answering it.
 Conversation repair (asking what you mean, where a question came from, or objecting to repetition)
@@ -90,6 +93,12 @@ is not conceptual failure. Answer the concern first, use next_activity pause and
 diagnostic_question when appropriate. An unresolved evidence question remains saved; do not
 repeat it until it helps learning. Recovery notices in history are runtime notices, not successful
 teaching. A repeated strategy label is acceptable when the actual explanation changes.
+An explicit parent learner_control REQUEST_FRESH_CHECK is a NEW request for a NEW current-step
+question. It overrides an earlier pause, not the curriculum or retired-question restrictions.
+Supply a nonempty diagnostic_question and not_applicable judgment; never repeat the retired
+question or merely assess the learner's previous answer. If the supplied history shows the
+learner already answered a requested check, address the current answer without another
+unsolicited check. Conversational correctness is not independent construction or mastery.
 Evaluate the answer when present AND respond to secondary intents. If there is no answer,
 use not_applicable and preserve the unresolved evidence need. No semantic label grants mastery.
 concept: names_values literals_quotes reassignment variable_use;
@@ -101,6 +110,8 @@ knowledge_classes: list drawn from approved_source model_general_knowledge canon
 claim_basis: short explanation of which claims use which knowledge class;
 source_specific: boolean;
 future_topic_deferred: boolean;
+This flag reports that depth was deferred, not that the whole reply is a future lesson.
+A refusal to advance or grant mastery may use clarification and discuss current evidence.
 current_location: C0-B01-D01 (optional parent-authority echo);
 curriculum_version: 0.8.3 (optional parent-authority echo);
 current_purpose: programming independence foundation (optional descriptive echo);
@@ -191,19 +202,32 @@ def turn_context(orientation_data, previous, message, history):
         if p.get('judgment') == 'correct' and p.get('concept') in counts:
             counts[p['concept']] += 1
     prior = (previous or {}).get('teaching', {}).get('pedagogy', {})
+    command = exact_control(message)
+    last = history[-1] if history else {}
+    last_control = (last.get('pedagogy_admission') or {}).get('learner_control') or {}
+    requested_check_active = bool(last_control.get('action') == 'REQUEST_FRESH_CHECK'
+                                  and last.get('question')
+                                  and last['question'] == (previous or {}).get('teaching', {}).get('diagnostic_question'))
     policy = {'knowledge_task_hint': 'stable_fundamentals', 'surface_signals': surface_signals(message),
               'message_kind_hint': kind, 'hint_origin': 'parent_surface_hint_no_authority', 'mixed_intent_hint': intent_hint(message),
               'model_observation_counts_not_mastery': counts,
               'saturated_concepts': [c for c,n in counts.items() if n >= 2],
               'previous_strategy': prior.get('strategy'),
+              'requested_check_active': requested_check_active,
               'rule': 'If current answer makes two correct observations for that concept, choose predict, learner_example or variation; do not ask another equivalent recall question.'}
-    return {'orientation': orientation_data,
+    context = {'orientation': orientation_data,
             'task_metadata': {'default_knowledge_task': 'stable_fundamentals', 'unlocked_capability': 'C0-B01-D01'},
             'C_turn': {'location':'C0-B01-D01', 'mode':'teaching_or_remediation',
             'learner_message': message, 'learner_input_references': references(message), 'unresolved_evidence_question': (previous or {}).get('unresolved_evidence_question',''), 'previous_teaching': (previous or {}).get('teaching'),
             'recent_exchanges': history, 'history_limit': 'At most 20 ancestor exchanges within 40KB; no complete recall claimed.',
             'hint_history': 'No explicit hint events in this integration harness; do not invent them.',
             'misconceptions': 'Infer only from supplied learner evidence; model judgments remain provisional.'}, 'turn_policy': policy}
+    if command:
+        context['learner_control'] = {'action': command, 'origin': 'parent_exact_command',
+            'input_sha256': sha(message), 'span': {'ref': 's0'}, 'requires_new_question': True,
+            'answer_evidence': False, 'grants_mastery': False,
+            'instruction': 'Give one NEW question within the unlocked capability. The learner explicitly requests a check now; an earlier pause or retired question does not cancel this new request.'}
+    return context
 
 
 def build_prompt(context, excerpt):
@@ -215,6 +239,8 @@ def build_prompt(context, excerpt):
                 'optional_parent_echoes': parent_response_authority(context),
                 'optional_descriptive_echoes': DESCRIPTIVE_ECHO_VALUES,
                 'optional_proposal_fields': ['routing'],
+                'nested_keys': {'pedagogy.intents': sorted({'primary', 'secondary', *SPANS}),
+                                'pedagogy.intent_responses': ['clarification', 'question', 'confusion']},
                 'unknown_fields': 'denied', 'profiles_share_contract': True})
             + '\nAPPROVED SOURCE EXCERPT (source-specific grounding):\n' + excerpt)
 
@@ -249,13 +275,44 @@ def bind_response_authority(result, context):
 
 
 def response_authority_binding(proposal, context):
+    normalized, _ = normalize_response_layout(proposal)
     return {'policy': 'verified-parent-turn-v1', 'origin': 'gurukul_parent',
             'values': parent_response_authority(context),
-            'omitted_model_echoes': sorted(PARENT_ECHO_KEYS - set(proposal['pedagogy']))}
+            'omitted_model_echoes': sorted(PARENT_ECHO_KEYS - set(normalized['pedagogy']))}
 
 
 class PedagogicalFormatError(ValueError):
     """Safe proposal rejected for representation, after hard checks have passed."""
+
+
+def normalize_response_layout(result):
+    """Rehome the one observed sibling-nesting error; never invent missing values."""
+    if not isinstance(result, dict) or not isinstance(result.get('pedagogy'), dict):
+        return result, []
+    p = result['pedagogy']; replies = p.get('intent_responses')
+    if not isinstance(replies, dict):return result, []
+    misplaced = set(replies) & (DIAGNOSTIC_KEYS | {'routing', 'control_span'})
+    if not misplaced:return result, []
+    expected = {'clarification', 'question', 'confusion'} | misplaced
+    if set(replies) != expected:
+        raise schema_error('Unknown fields in misplaced diagnostics', 'guru.layout.schema', expected, replies)
+    result = deepcopy(result); p = result['pedagogy']; moves = []
+    for field in sorted(misplaced):
+        destination = p.get('intents') if field == 'control_span' else p
+        if not isinstance(destination, dict) or field in destination:
+            raise ResponseContractError('Conflicting diagnostic placement', stage='guru.layout.schema', code='ambiguous_placement')
+        destination[field] = p['intent_responses'].pop(field)
+        moves.append({'from': 'pedagogy.intent_responses.' + field,
+                      'to': ('pedagogy.intents.' if field == 'control_span' else 'pedagogy.') + field})
+    return result, moves
+
+
+def response_layout_binding(proposal):
+    normalized, moves = normalize_response_layout(proposal)
+    if not moves:return None
+    return {'policy': 'observed-sibling-layout-v1', 'origin': 'gurukul_parent', 'moves': moves,
+            'raw_proposal_sha256': sha(canonical(proposal)),
+            'normalized_proposal_sha256': sha(canonical(normalized))}
 
 
 def safe_misplaced_example(prose):
@@ -282,6 +339,7 @@ def validate_response(result, context=None, *, allow_safe_format=False, require_
     outer_keys = {'explanation','diagnostic_question','miniature_example','pedagogy'}
     if not isinstance(result, dict) or set(result) != outer_keys:
         raise schema_error('Pedagogical response schema mismatch', 'guru.response.schema', outer_keys, result)
+    result, _ = normalize_response_layout(result)
     p = result['pedagogy']
     mixed = require_intents or isinstance(p,dict) and 'intents' in p
     keys = DIAGNOSTIC_KEYS | {'routing'} | ({'intents','intent_responses'} if mixed else set())
