@@ -6,6 +6,13 @@ GURU-004H, GURU-004M and GURU-005 remain accepted and closed. This increment
 uses synthetic data and mocked providers only. No learner assessment, provider
 call, verified independence, mastery or curriculum advancement was performed.
 
+Current boundary repair: reviewed starting commit
+`38f0858a149c3e10b058fd628b59023e5a10da63`; see the
+[boundary verification capture](GURU-006-boundary-verification.txt).
+Final repair verification: **152 focused tests, OK; 314 full-suite tests,
+OK (skipped=1)** on Linux x86_64 / Python 3.12.14. Catalogue approvals and actual
+delayed retrieval remain outstanding; implementation acceptance is pending.
+
 ## Authority and persistence
 
 `src/gurukul/assessment.py` owns the narrow lifecycle commands and typed event
@@ -20,7 +27,13 @@ credit. A new completion request can reuse that verified observation.
 The canonical authority is the root's `var/gurukul.sqlite3`, with its explicit
 active session and pinned exercise. `learning_authority.py` serializes lifecycle
 operations and teaching with the same nonblocking POSIX file lock. Teaching holds
-the lease across dispatch, admission and display. Missing, expired, inconsistent
+the lease across dispatch, admission and display. Cached continuation validation
+and display use a short lease; blocking learner input and the source chooser hold
+no canonical authority lease. After input, the parent obtains a fresh lease and
+revalidates the session/exercise before runtime setup or dispatch. An assessment
+may open while teaching waits; that submitted input then cannot dispatch while
+the assessment remains active. The separate teaching-adapter turn lock still
+serializes teaching processes and does not block assessment opening. Missing, expired, inconsistent
 or assessment-phase authority denies tutoring. This covers the live CLI's new
 turns, continuations, cached display, and Maharishi `supervise`/`reserve` paths.
 A continuation additionally must match the saved `learner_authority` session and
@@ -57,7 +70,14 @@ Policy `d01-assessment-1` schedules **24 hours after the verified practice or
 remediation anchor**, not 24 hours after the scheduling command. This is an
 operational first policy, not a newly invented canonical learning requirement.
 Explicit due observation and opening remain necessary. Backwards observed clock
-movement is refused. Each assessment pins a **20-minute deadline and four
+movement holds scheduling, due/opening, execution, completion and recovery. Only
+`assessment-exit ASSESSMENT_UUID --reason review --request-id UUID` may proceed
+during rollback. It atomically records REVIEW_REQUIRED and a `clock_anomaly`
+containing the retained high-water timestamp, current timestamp and
+`review_exit_only` action. It closes the assessment without credit. Its exact
+request replay is idempotent; it does not reset the clock high-water mark or
+reservation budget. Normal lifecycle work remains held while the rollback
+persists. Tutoring is denied until the explicit exit commits. Each assessment pins a **20-minute deadline and four
 execution reservations**; failed/infrastructure/interrupted reservations are not
 refunded. Limits and identity are saved per reservation. Elapsed deadlines require
 an explicit interruption/review exit; restart cannot reset them. Completed roles
@@ -73,6 +93,18 @@ completion refuse changed checker/curriculum/policy; completion also revalidates
 the approved descriptor. There is always an explicit review exit. Base D01 exercise,
 checker and check specification are unchanged. Assessment-owned role bindings are
 mandatory: an ordinary practice pair cannot be borrowed for completion.
+
+After FAILED or HELP_REQUESTED, scheduling requires the admitted
+`remediation.completed` event after the latest such exit. Raw passing checks
+(including newly checked practice) and older practice/remediation anchors are
+insufficient. The same requirement is revalidated at opening, including for
+historically saved obligations. Remediation reuses the existing verifier and
+requires both attempts and their passing evaluation after exit. The new due time
+is exactly 86,400 seconds after remediation completion, never the earlier
+practice anchor. Rejected historical obligations are retained for explicit
+review; this repair adds no automatic cancellation, history rewrite or override
+workflow. If one prevents scheduling through the one-obligation guard, review
+is required rather than silently replacing it.
 
 ## Commands
 
@@ -144,7 +176,7 @@ policy can still conservatively HOLD its eligibility. No general G005 exposure
 restriction is narrowed, and no form of opening proves independence. Prior
 failures, assistance, reservations and decisions remain immutable.
 
-## Verification and remaining acceptance limits
+## Original implementation verification and remaining acceptance limits
 
 [Captured verification](GURU-006-verification.txt) records Linux x86_64,
 Python 3.12.14:
@@ -171,3 +203,37 @@ Catalogue approval, actual delayed retrieval and GURU-006 acceptance remain
 separate architect decisions. No new Mac/provider evidence is claimed. There is
 no daemon scheduler, external identity/clock attestation, assessment orchestration
 beyond this D01 slice, generic NLP mechanism, mastery award or gate advancement.
+
+## G006-BOUNDARY-REPAIR verification
+
+[Boundary verification](GURU-006-boundary-verification.txt) preserves the original
+capture above and records the repair separately. Before changing production code,
+six new cases against the reviewed implementation produced **4 failures and
+2 errors**: old anchors were admitted, idle input prevented opening, and rollback
+prevented explicit review exit. Eight final regressions in
+`tests/test_assessment_boundaries.py` cover these boundaries, a historical saved
+obligation, and exactly-once dispatch after normal idle input.
+
+Completed final commands:
+
+```text
+PYTHONPATH=src:tests python3 -u -B -m unittest test_assessment_boundaries test_assessment test_hermes_interactive test_mixed_intents test_maharishi test_semantic_authority test_supervised_contract test_control_contract
+Ran 152 tests in 5.169s
+OK
+
+PYTHONPATH=src python3 -u -B -m unittest discover -s tests
+Ran 314 tests in 15.765s
+OK (skipped=1)
+```
+
+The skip requires actual macOS sandbox-exec. Earlier incomplete process captures
+have no passing claim. Synthetic demonstrations use an actual separate teaching
+process waiting on stdin, with mocked continuation loading and worker dispatch;
+opening succeeds during that wait, then dispatch is denied. Other temporary
+fixtures show both failed/help-exit anchor rejection, admission of new remediation
+with its full 24-hour delay, and a pending interrupted snapshot/reservation
+retained unchanged through audited clock-review exit and duplicate replay.
+Historical row-prefix comparisons remain equal. No provider or real learner
+assessment was run. The production catalogue and accepted checker/curriculum
+remain unchanged; both candidates are still unapproved. GURU-006 acceptance
+remains pending, and GURU-004H, GURU-004M and GURU-005 remain closed.

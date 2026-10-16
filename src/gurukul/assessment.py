@@ -157,11 +157,15 @@ class Controller:
         self.session_id=s['session']['id']
         return s
 
-    def clock_check(self):
+    def clock_check(self, review_exit=False):
         self.timestamp=instant(self.clock()).isoformat()
         rows=events(self.store.db,'learning.command_recorded')+events(self.store.db,'assessment.run_reserved')
         observed=[instant(e['payload']['observed_at']) for e in rows if 'observed_at' in e['payload']]
-        if observed and instant(self.timestamp)<max(observed): raise ValueError('Clock moved backwards; lifecycle held for review.')
+        self.clock_anomaly=None
+        if observed and instant(self.timestamp)<max(observed):
+            if not review_exit:raise ValueError('Clock moved backwards; lifecycle held for review.')
+            self.clock_anomaly={'kind':'clock_rollback','last_observed_at':max(observed).isoformat(),
+                                'observed_at':self.timestamp,'permitted_action':'review_exit_only'}
 
     def state(self, assessment_id=None):
         s=self.session();active=active_assessment(self.store.db,self.session_id)
@@ -193,7 +197,7 @@ class Controller:
         uuid(request_id)
         if command not in {'schedule','due','open','resume','exit','complete','remediated'}: raise ValueError('Unknown lifecycle command.')
         with learning_lock(self.store.state_dir):
-            self.clock_check();self.session()
+            self.clock_check(review_exit=command=='exit' and args.get('reason')=='review');self.session()
             identity={'command':command,'arguments':args}
             previous=self.store.db.execute('SELECT payload_json FROM events WHERE idempotency_key=?',('learning.command:'+request_id,)).fetchone()
             if previous:
@@ -228,6 +232,7 @@ class Controller:
 
     def _schedule(self, anchor_event_id):
         if active_assessment(self.store.db,self.session_id): raise ValueError('Exit the assessment before scheduling.')
+        self.reconstruction_anchor(anchor_event_id)
         anchor=self.store.db.execute('SELECT * FROM events WHERE event_id=?',(anchor_event_id,)).fetchone()
         if not anchor or anchor['session_id']!=self.session_id or anchor['event_type'] not in {'assessment.checked','remediation.completed'}:
             raise ValueError('Schedule needs a local practice evaluation or remediation-completion anchor.')
@@ -248,6 +253,16 @@ class Controller:
         self.emit('retrieval.scheduled',rid,data,'retrieval.scheduled:'+rid,self.session_id,anchor_event_id)
         return data
 
+    def reconstruction_anchor(self, anchor_event_id):
+        closed=[e for e in events(self.store.db,'assessment.closed') if e['session_id']==self.session_id and
+                e['payload']['outcome'] in {'FAILED','HELP_REQUESTED'}]
+        if not closed:return
+        latest=closed[-1]
+        admitted=[e for e in events(self.store.db,'remediation.completed') if e['session_id']==self.session_id and e['sequence']>latest['sequence']]
+        if self.session()['session']['phase']=='remediation' or not admitted or admitted[-1]['event_id']!=anchor_event_id:
+            raise ValueError('Reconstruction requires the admitted post-exit remediation anchor.')
+        self.remediation_evidence(admitted[-1]['payload']['evaluation_id'],latest)
+
     def retrieval(self,rid):
         rows=events(self.store.db,'retrieval.scheduled',rid)
         if len(rows)!=1 or rows[0]['session_id']!=self.session_id: raise ValueError('Unknown retrieval obligation.')
@@ -265,6 +280,7 @@ class Controller:
     def _open(self,retrieval_id,variant_id):
         if self.state()['assessment']: raise ValueError('Another assessment is active.')
         r=self.retrieval(retrieval_id)
+        self.reconstruction_anchor(r['payload']['anchor_event_id'])
         if not events(self.store.db,'retrieval.became_due',retrieval_id): raise ValueError('Explicit due observation required.')
         if instant(self.timestamp)<instant(r['payload']['due_at']): raise ValueError('Not due.')
         if any(e['payload']['retrieval_id']==retrieval_id for e in events(self.store.db,'assessment.opened')): raise ValueError('Retrieval obligation already consumed.')
@@ -318,7 +334,8 @@ class Controller:
 
     def _exit(self,assessment_id,reason):
         if reason not in {'help','abandon','interrupted','review'}: raise ValueError('Unsupported explicit assessment exit.')
-        return self.close_assessment(assessment_id,{'help':'HELP_REQUESTED','abandon':'ABANDONED','interrupted':'INTERRUPTED','review':'REVIEW_REQUIRED'}[reason], 'remediation' if reason=='help' else 'teaching')
+        extra={'clock_anomaly':self.clock_anomaly} if self.clock_anomaly else None
+        return self.close_assessment(assessment_id,{'help':'HELP_REQUESTED','abandon':'ABANDONED','interrupted':'INTERRUPTED','review':'REVIEW_REQUIRED'}[reason], 'remediation' if reason=='help' else 'teaching',extra)
 
     def _complete(self,assessment_id,attempt_id,failed_attempt_id,evaluation):
         state=self.require_open(assessment_id);self.bounds(state)
@@ -348,20 +365,25 @@ class Controller:
 
     def _remediated(self,evaluation_id):
         if self.session()['session']['phase']!='remediation': raise ValueError('Not in remediation.')
-        from .evidence import verified_evaluation
-        r,b,checked,_=verified_evaluation(self.store,evaluation_id,self.root)
-        if b['session_id']!=self.session_id or r['outcome']!='CHECKS_PASS': raise ValueError('Bound passing practice evaluation required; assisted practice is permitted.')
         closed=[e for e in events(self.store.db,'assessment.closed') if e['session_id']==self.session_id]
-        if not closed or checked['sequence']<=closed[-1]['sequence']:
-            raise ValueError('Remediation requires practice evidence after assessment exit.')
-        for attempt in (b['attempt_id'],b['failed_attempt_id']):
-            submitted=events(self.store.db,'execution.submitted',attempt)
-            if len(submitted)!=1 or submitted[0]['sequence']<=closed[-1]['sequence']:
-                raise ValueError('Remediation requires newly submitted practice after assessment exit.')
+        if not closed:raise ValueError('Remediation requires an assessment exit.')
+        checked=self.remediation_evidence(evaluation_id,closed[-1])
         p={'evaluation_id':evaluation_id,'completed_at':self.timestamp}
         eid=self.emit('remediation.completed',evaluation_id,p,'remediation.completed:'+evaluation_id,self.session_id,checked['event_id'])
         self.store.db.execute("UPDATE sessions SET phase='teaching' WHERE id=?",(self.session_id,))
         return dict(p,anchor_event_id=eid)
+
+    def remediation_evidence(self,evaluation_id,closed):
+        from .evidence import verified_evaluation
+        r,b,checked,_=verified_evaluation(self.store,evaluation_id,self.root)
+        if b['session_id']!=self.session_id or r['outcome']!='CHECKS_PASS': raise ValueError('Bound passing practice evaluation required; assisted practice is permitted.')
+        if checked['sequence']<=closed['sequence']:
+            raise ValueError('Remediation requires practice evidence after assessment exit.')
+        for attempt in (b['attempt_id'],b['failed_attempt_id']):
+            submitted=events(self.store.db,'execution.submitted',attempt)
+            if len(submitted)!=1 or submitted[0]['sequence']<=closed['sequence']:
+                raise ValueError('Remediation requires newly submitted practice after assessment exit.')
+        return checked
 
     def submit(self,assessment_id,request_id,role,path,timeout=5.0,output_limit=65536):
         uuid(request_id)

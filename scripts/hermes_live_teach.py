@@ -147,15 +147,45 @@ def _display_teaching(report):
         print('Ask a follow-up, describe your confusion, or type /quit.')
 
 
+def check_teaching_exercise(lease):
+    exercise = json.loads((PROJECT / 'content/c0_b01/d01.json').read_text())
+    if hashlib.sha256(canonical(exercise).encode()).hexdigest() != lease.exercise_sha256:
+        raise ValueError('Teaching exercise differs from canonical learner authority.')
+    return exercise
+
+
 def run_locked(args):
     session_id = getattr(args, 'session_id', None)
     if not session_id:
         raise ValueError('Explicit --session-id canonical learner binding is required.')
+    bound_args = copy.copy(args)
+    if getattr(args, 'continue_call', None):
+        # Validate and display under authority, then relinquish it while idle.
+        with canonical_teaching(PROJECT / 'var/gurukul.sqlite3', session_id) as lease:
+            exercise = check_teaching_exercise(lease)
+            config = json.loads((PROJECT / 'config/hermes-live.json').read_text())
+            manifest = json.loads((PROJECT / 'content/sources.json').read_text())
+            previous = load_previous(PROJECT / 'var/hermes-live', args.continue_call, manifest, config, exercise)
+            if previous.get('learner_authority') != lease.binding():
+                raise ValueError('Saved continuation lacks matching canonical learner authority; historical records are not rebound automatically.')
+            if previous.get('supervision_state') and not getattr(args, 'maharishi', False):
+                raise ValueError('This continuation has active supervision; resume with --maharishi')
+            if getattr(args, 'displayed_call', None) != args.continue_call:
+                print('Guru: ' + previous['teaching']['explanation'])
+                if previous['teaching']['diagnostic_question']:
+                    print('Question: ' + previous['teaching']['diagnostic_question'])
+                else:
+                    print('The learning question is saved. Ask a follow-up or continue when ready.')
+        bound_args.prepared_answer = read_answer(previous)
+    elif getattr(args, 'choose_source', False):
+        with canonical_teaching(PROJECT / 'var/gurukul.sqlite3', session_id) as lease:
+            check_teaching_exercise(lease)
+        selected = subprocess.check_output(['/usr/bin/osascript', '-e',
+            'POSIX path of (choose file with prompt "Select approved C0-B01_Values_and_Variables.html")'], text=True)
+        bound_args.source, bound_args.choose_source = Path(selected.strip()), False
+    # Input is not authorization: reacquire and recheck before any dispatch.
     with canonical_teaching(PROJECT / 'var/gurukul.sqlite3', session_id) as lease:
-        exercise = json.loads((PROJECT / 'content/c0_b01/d01.json').read_text())
-        if hashlib.sha256(canonical(exercise).encode()).hexdigest() != lease.exercise_sha256:
-            raise ValueError('Teaching exercise differs from canonical learner authority.')
-        bound_args = copy.copy(args)
+        check_teaching_exercise(lease)
         bound_args.learning_authority = lease
         return _run_authorized(bound_args)
 
@@ -180,10 +210,6 @@ def _run_authorized(args):
     private_key(key_path)  # Validate locally; never print or forward this secret to Hermes.
     supervisor = configured_provider(runtime) if getattr(args,'maharishi',False) else None
     local_source = args.source
-    if args.choose_source:
-        selected = subprocess.check_output(['/usr/bin/osascript', '-e',
-            'POSIX path of (choose file with prompt "Select approved C0-B01_Values_and_Variables.html")'], text=True)
-        local_source = Path(selected.strip())
     exercise = json.loads((PROJECT / 'content/c0_b01/d01.json').read_text())
     manifest = json.loads((PROJECT / 'content/sources.json').read_text())
     previous = None
@@ -194,13 +220,7 @@ def _run_authorized(args):
             raise ValueError('Saved continuation lacks matching canonical learner authority; historical records are not rebound automatically.')
         if previous.get('supervision_state') and supervisor is None:
             raise ValueError('This continuation has active supervision; resume with --maharishi')
-        if getattr(args, 'displayed_call', None) != args.continue_call:
-            print('Guru: ' + previous['teaching']['explanation'])
-            if previous['teaching']['diagnostic_question']:
-                print('Question: ' + previous['teaching']['diagnostic_question'])
-            else:
-                print('The learning question is saved. Ask a follow-up or continue when ready.')
-        prompt, continuation = read_answer(previous)
+        prompt, continuation = args.prepared_answer
         excerpt, provenance = previous['excerpt'], previous['provenance']
     else:
         prompt, excerpt, provenance = source_input(local_source, manifest, config, exercise)

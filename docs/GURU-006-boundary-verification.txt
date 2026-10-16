@@ -1,0 +1,146 @@
+G006-BOUNDARY-REPAIR — SYNTHETIC IMPLEMENTATION VERIFICATION
+Starting commit: 38f0858a149c3e10b058fd628b59023e5a10da63
+Starting tree: a4de3979efc71a97e445a759bfa26eecce8bec19
+Branch: guru-006-assessment-lifecycle
+Linux-6.18.44-x86_64-with-glibc2.39
+Python 3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]
+No providers, real learner assessments, mastery or curriculum advancement.
+
+PRE-REPAIR (new regressions; production source matched reviewed tree):
+COMMAND: PYTHONPATH=src:tests python3 -u -B -m unittest -v test_assessment_boundaries
+test_failed_assessment_rejects_pre_remediation_anchor (test_assessment_boundaries.BoundaryRepairTests.test_failed_assessment_rejects_pre_remediation_anchor) ... FAIL
+test_help_exit_rejects_pre_remediation_anchor (test_assessment_boundaries.BoundaryRepairTests.test_help_exit_rejects_pre_remediation_anchor) ... FAIL
+test_open_while_teaching_waits_then_deny_dispatch (test_assessment_boundaries.BoundaryRepairTests.test_open_while_teaching_waits_then_deny_dispatch) ... ERROR
+test_remediation_anchor_preserves_delay_and_rejects_older_anchor_after_restart (test_assessment_boundaries.BoundaryRepairTests.test_remediation_anchor_preserves_delay_and_rejects_older_anchor_after_restart) ... FAIL
+test_rollback_blocks_work_but_allows_audited_review_exit (test_assessment_boundaries.BoundaryRepairTests.test_rollback_blocks_work_but_allows_audited_review_exit) ... ERROR
+test_unadmitted_new_practice_does_not_bypass_remediation_completion (test_assessment_boundaries.BoundaryRepairTests.test_unadmitted_new_practice_does_not_bypass_remediation_completion) ... FAIL
+
+======================================================================
+ERROR: test_open_while_teaching_waits_then_deny_dispatch (test_assessment_boundaries.BoundaryRepairTests.test_open_while_teaching_waits_then_deny_dispatch)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/d9dc4f68e843/gurukul/tests/test_assessment_boundaries.py", line 77, in test_open_while_teaching_waits_then_deny_dispatch
+    a=self.call('open',retrieval_id=r['retrieval_id'],variant_id='d01-counter-a')
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/d9dc4f68e843/gurukul/tests/test_assessment.py", line 55, in call
+    def call(self,cmd,**args):return self.c.command(cmd,str(uuid4()),**args)
+                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/d9dc4f68e843/gurukul/src/gurukul/assessment.py", line 195, in command
+    with learning_lock(self.store.state_dir):
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/contextlib.py", line 137, in __enter__
+    return next(self.gen)
+           ^^^^^^^^^^^^^^
+  File "/workspace/scratch/d9dc4f68e843/gurukul/src/gurukul/learning_authority.py", line 17, in learning_lock
+    raise ValueError('Another assessment or teaching operation holds learner authority.') from None
+ValueError: Another assessment or teaching operation holds learner authority.
+
+======================================================================
+ERROR: test_rollback_blocks_work_but_allows_audited_review_exit (test_assessment_boundaries.BoundaryRepairTests.test_rollback_blocks_work_but_allows_audited_review_exit)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/d9dc4f68e843/gurukul/tests/test_assessment_boundaries.py", line 128, in test_rollback_blocks_work_but_allows_audited_review_exit
+    result=self.c.command('exit',request,**args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/d9dc4f68e843/gurukul/src/gurukul/assessment.py", line 196, in command
+    self.clock_check();self.session()
+    ^^^^^^^^^^^^^^^^^^
+  File "/workspace/scratch/d9dc4f68e843/gurukul/src/gurukul/assessment.py", line 164, in clock_check
+    if observed and instant(self.timestamp)<max(observed): raise ValueError('Clock moved backwards; lifecycle held for review.')
+                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: Clock moved backwards; lifecycle held for review.
+
+======================================================================
+FAIL: test_failed_assessment_rejects_pre_remediation_anchor (test_assessment_boundaries.BoundaryRepairTests.test_failed_assessment_rejects_pre_remediation_anchor)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/d9dc4f68e843/gurukul/tests/test_assessment_boundaries.py", line 92, in test_failed_assessment_rejects_pre_remediation_anchor
+    with self.assertRaisesRegex(ValueError,'[Rr]emediation'):self.call('schedule',anchor_event_id=self.anchor)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_help_exit_rejects_pre_remediation_anchor (test_assessment_boundaries.BoundaryRepairTests.test_help_exit_rejects_pre_remediation_anchor)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/d9dc4f68e843/gurukul/tests/test_assessment_boundaries.py", line 88, in test_help_exit_rejects_pre_remediation_anchor
+    with self.assertRaisesRegex(ValueError,'[Rr]emediation'):self.call('schedule',anchor_event_id=self.anchor)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_remediation_anchor_preserves_delay_and_rejects_older_anchor_after_restart (test_assessment_boundaries.BoundaryRepairTests.test_remediation_anchor_preserves_delay_and_rejects_older_anchor_after_restart)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/d9dc4f68e843/gurukul/tests/test_assessment_boundaries.py", line 105, in test_remediation_anchor_preserves_delay_and_rejects_older_anchor_after_restart
+    with self.assertRaisesRegex(ValueError,'[Rr]emediation'):self.call('schedule',anchor_event_id=anchor)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+======================================================================
+FAIL: test_unadmitted_new_practice_does_not_bypass_remediation_completion (test_assessment_boundaries.BoundaryRepairTests.test_unadmitted_new_practice_does_not_bypass_remediation_completion)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/workspace/scratch/d9dc4f68e843/gurukul/tests/test_assessment_boundaries.py", line 96, in test_unadmitted_new_practice_does_not_bypass_remediation_completion
+    with self.assertRaisesRegex(ValueError,'[Rr]emediation'):self.call('schedule',anchor_event_id=anchor)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ValueError not raised
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.679s
+
+FAILED (failures=4, errors=2)
+
+INCOMPLETE INVOCATIONS — no unittest completion summary, no passing claim. A shell/tool exit alone is not accepted as a test result.
+g006-boundary-focused-initial.txt whole-file SHA-256 602ad14d0ae369fabd5c969d6447790de943774ca476e2b71d75de6c4ac56361
+test_missing_declaration_is_preserved_as_unknown_review_only (test_assessment.AssessmentTests.test_missing_declaration_is_preserved_as_unknown_review_only) ... ok
+test_missing_pair_is_recorded_without_closing (test_assessment.AssessmentTests.test_missing_pair_is_recorded_without_closing) ... ok
+test_old_submissions_checked_after_exit_are_not_new_remediation (test_assessment.AssessmentTests.test_old_submissions_checked_after_exit_are_not_new_remediation) ...
+g006-boundary-full-final.txt whole-file SHA-256 cdb4ee2aea69cc6a83331bbe96dc2caa9a299d21329efb0336fc02a82e1839a8
+.
+
+FINAL FOCUSED COMMAND: PYTHONPATH=src:tests python3 -u -B -m unittest test_assessment_boundaries test_assessment test_hermes_interactive test_mixed_intents test_maharishi test_semantic_authority test_supervised_contract test_control_contract
+........................................................................................................................................................
+----------------------------------------------------------------------
+Ran 152 tests in 5.169s
+
+OK
+
+FINAL COMPLETED FULL COMMAND: PYTHONPATH=src python3 -u -B -m unittest discover -s tests
+............................................................................................................................................................................................s.............................................................................................................................
+----------------------------------------------------------------------
+Ran 314 tests in 15.765s
+
+OK (skipped=1)
+
+FINAL NEW REGRESSION NAMES (AST inventory, not another execution):
+test_open_while_teaching_waits_then_deny_dispatch
+test_help_exit_rejects_pre_remediation_anchor
+test_failed_assessment_rejects_pre_remediation_anchor
+test_unadmitted_new_practice_does_not_bypass_remediation_completion
+test_remediation_anchor_preserves_delay_and_rejects_older_anchor_after_restart
+test_rollback_blocks_work_but_allows_audited_review_exit
+test_legacy_unconsumed_obligation_is_rechecked_at_opening
+test_idle_answer_reacquires_a_new_lease_and_dispatches_once
+
+SYNTHETIC DEMONSTRATIONS — temporary fixtures/catalogue approvals, injected clock, actual child teaching process waiting on stdin with mocked history/dispatch. Not actual delayed retrieval or real learner evidence:
+{"actual_delayed_retrieval": false, "kind": "environment", "platform": "Linux-6.18.44-x86_64-with-glibc2.39", "provider_calls": 0, "python": "3.12.14", "synthetic_clock": true}
+{"assessment_id": "e1a2d4a9-f88c-49f3-a326-09fb5c65172f", "assessment_still_open": true, "history_prefix_unchanged": true, "kind": "idle_input", "provider_dispatches": 0, "teaching_process_output": "DENIED: Tutoring denied: assessment open or canonical session unavailable.", "waiting_observed": true}
+{"assessment_id": "7703c578-20eb-4f6f-8b37-35ad659d66d2", "denied": "Reconstruction requires the admitted post-exit remediation anchor.", "exit": "help", "history_unchanged": true, "kind": "pre_remediation_anchor", "phase": "remediation"}
+{"anchor_at": "2026-10-18T02:50:11.227261+00:00", "anchor_event_id": "83cbd653-98e7-4dcb-916d-3c0541207d31", "delay_seconds": 86400.0, "due_at": "2026-10-19T02:50:11.227261+00:00", "early_due_denial": "Retrieval is not due.", "history_prefix_unchanged": true, "kind": "admitted_remediation_anchor", "later_assessment_id": "c1363061-a349-47a2-aedc-a16a8e61fb6b", "retrieval_anchor": "83cbd653-98e7-4dcb-916d-3c0541207d31", "unadmitted_practice_denial": "Reconstruction requires the admitted post-exit remediation anchor.", "variant": "d01-stock-b"}
+{"assessment_id": "de823b40-b341-45ed-a89c-c4869b9ace31", "denied": "Reconstruction requires the admitted post-exit remediation anchor.", "exit": "failed", "history_unchanged": true, "kind": "pre_remediation_anchor", "phase": "remediation"}
+{"assessment_id": "e01b9fa1-bf66-41fb-b329-28bb3bf00999", "clock_anomaly": {"kind": "clock_rollback", "last_observed_at": "2026-10-17T23:50:11.477762+00:00", "observed_at": "2026-10-17T22:50:11.477762+00:00", "permitted_action": "review_exit_only"}, "execution_denial": "Clock moved backwards; lifecycle held for review.", "history_prefix_unchanged": true, "idempotent_review_exit": true, "kind": "clock_review_exit", "last_observed_at": "2026-10-17T23:50:11.477762+00:00", "open_denial": "Clock moved backwards; lifecycle held for review.", "outcome": "REVIEW_REQUIRED", "pending_attempt": "c31a1102-0bbf-46cc-8c5d-525df201014d", "phase": "teaching", "reservation_rows_unchanged": true, "reservations_after": 1, "reservations_before": 1, "schedule_denial": "Clock moved backwards; lifecycle held for review.", "snapshot_unchanged": true, "snapshot_whole_file_sha256": "e5308cc9ff3a6a94279144ebeb0dc7350b321f42842e5925dfe57520864a127d", "tutor_denial_before_exit": "Tutoring denied: assessment open or canonical session unavailable."}
+{"curriculum_advancement": false, "kind": "receipt", "mastery": false, "production_approvals": 0, "production_catalogue_changed": false, "provider_calls": 0, "real_learner_assessments": 0}
+
+HASHES — SHA-256 of whole-file bytes, not canonical JSON or message content:
+src/gurukul/assessment.py reviewed source 81be46c43960bf7aa30a15031456535bc1fecf4d872e1279792d2786c35de702
+src/gurukul/assessment.py repaired source fa0018d72f2d2e1d731e5f313e4239b607888ca27348d5b487c91475e52e71a0
+scripts/hermes_live_teach.py reviewed source 2fc100222cbfd6b98a32d698440ce77b9b677a931bad437fca2dd09fe63b59df
+scripts/hermes_live_teach.py repaired source 893b238a9a77f1b44cb418fce5abe79bf02aa8f75174a781ffaf55b504b396dd
+tests/test_assessment_boundaries.py de25ea7fcd926a9cc7f384c7f08b5183524ea1830dbc21c70b75fb1d18738de1
+content/assessments/d01-candidates.json 25d171dc965895cc460a726299cfe24f3540c1bde205b1ba460203b50d7f9bbd
+src/gurukul/checks.py 492a843003c8e39d206db1ea0c24847b7da843a3a3d4d5fa58a59c0d46957fc1
+content/checks/d01-v1.json 9f37d6720388349332a0c42d411e3d2d38e6153e4b29c7a8474003052dd1282c
+docs/GURU-006-verification.txt 3c45dd78711d4ae9da7b468d6a01a0c65efc84f7b07a97cd78b5c4d635e11d84
+
+Historical records/policy versions are not rewritten; the exact lifecycle-source hash remains pinned at opening. Older active-policy attempts can explicitly exit for review. No schema migration, backfill, budget reset or candidate approval. No main integration or GURU-006 acceptance is claimed.
