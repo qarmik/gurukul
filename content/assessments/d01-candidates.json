@@ -1,0 +1,65 @@
+{
+  "catalogue_version": 1,
+  "candidates": [
+    {
+      "id": "d01-counter-a",
+      "descriptor": {
+        "base_exercise_sha256": "758e6091ea4c8093fe97d32b35e93383179289afded0b1e616f6806b1f30b19c",
+        "prompt": "From a blank file, construct the D01 program using the supplied five initial values; print them, apply the two supplied changed values and print those again. Preserve a deliberate bare-text NameError and its unassisted quoted-text repair. No book, prior source or tutoring during this attempt.",
+        "initial_values": {
+          "label": "cedar",
+          "city": "Pune",
+          "count": 4,
+          "rate": 1.5,
+          "limit": 12
+        },
+        "reassignments": {
+          "count": 9,
+          "label": "birch"
+        }
+      },
+      "descriptor_sha256": "c86dabca70790a631150cb0ecac3ddf126b4d1279ba6bc6826657fe0bfcf33dd",
+      "rules": {
+        "kind": "d01-task-data-1",
+        "preserve_base_checker": true
+      },
+      "rules_sha256": "c8b8bc914b99843047c860a8a66fc761cd2bdd8ede783e50ffe324ebe51d59f6",
+      "approval": {
+        "status": "unapproved",
+        "reference": null,
+        "descriptor_sha256": null,
+        "rules_sha256": null
+      }
+    },
+    {
+      "id": "d01-stock-b",
+      "descriptor": {
+        "base_exercise_sha256": "758e6091ea4c8093fe97d32b35e93383179289afded0b1e616f6806b1f30b19c",
+        "prompt": "From a blank file, construct the D01 program using the supplied five initial values; print them, apply the two supplied changed values and print those again. Preserve a deliberate bare-text NameError and its unassisted quoted-text repair. No book, prior source or tutoring during this attempt.",
+        "initial_values": {
+          "tag": "amber",
+          "zone": "west",
+          "boxes": 6,
+          "unit": 2.5,
+          "ceiling": 20
+        },
+        "reassignments": {
+          "zone": "east",
+          "unit": 3.5
+        }
+      },
+      "descriptor_sha256": "8185f84147c0c5f6ba737f609618c309f543db891ea1b8d12423e572a292ee53",
+      "rules": {
+        "kind": "d01-task-data-1",
+        "preserve_base_checker": true
+      },
+      "rules_sha256": "c8b8bc914b99843047c860a8a66fc761cd2bdd8ede783e50ffe324ebe51d59f6",
+      "approval": {
+        "status": "unapproved",
+        "reference": null,
+        "descriptor_sha256": null,
+        "rules_sha256": null
+      }
+    }
+  ]
+}

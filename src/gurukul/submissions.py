@@ -16,7 +16,7 @@ def save_new(path, data):
     path.chmod(0o400)
 
 
-def submit(store, source_path, timeout=5.0, output_limit=65536):
+def submit(store, source_path, timeout=5.0, output_limit=65536, _assessment_permit=None):
     validate_limits(timeout, output_limit)
     session = store.resume()['session']
     source_path = Path(source_path)
@@ -26,11 +26,13 @@ def submit(store, source_path, timeout=5.0, output_limit=65536):
         source = handle.read(MAX_SOURCE_BYTES + 1)
     if len(source) > MAX_SOURCE_BYTES:
         raise ValueError('Submission exceeds 256 KiB.')
-    attempt_id = str(uuid4())
+    from .assessment import submission_permission
+    reservation = submission_permission(store, session, digest(source), _assessment_permit)
+    attempt_id = reservation['attempt_id'] if reservation else str(uuid4())
     folder = store.state_dir / 'evidence' / attempt_id
     folder.mkdir(parents=True)
     save_new(folder / 'submission.py', source)
-    store.record_submission(attempt_id, session['id'], digest(source), now())
+    store.record_submission(attempt_id, session['id'], digest(source), now(), assessment=reservation)
     # Execute the retained bytes, not the mutable original file.
     snapshot = (folder / 'submission.py').read_bytes()
     if digest(snapshot) != digest(source):

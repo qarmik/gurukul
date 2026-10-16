@@ -171,6 +171,12 @@ def select_state(state,directive,pending):
 
 
 def reserve(store,session_id,call_id,limit):
+    from .learning_authority import store_teaching
+    with store_teaching(store,session_id):
+        return _reserve(store,session_id,call_id,limit)
+
+
+def _reserve(store,session_id,call_id,limit):
     """Reserve before sending: provider failure or restart never refunds a request."""
     with store.db:
         store.db.execute('BEGIN IMMEDIATE')
@@ -187,6 +193,12 @@ def reserve(store,session_id,call_id,limit):
 
 
 def supervise(view,state,provider,store,session_id,call_id,limit=4):
+    from .learning_authority import store_teaching
+    with store_teaching(store,session_id):
+        return _supervise(view,state,provider,store,session_id,call_id,limit)
+
+
+def _supervise(view,state,provider,store,session_id,call_id,limit=4):
     session=store.db.execute('SELECT phase,status FROM sessions WHERE id=?',(session_id,)).fetchone()
     if not session or session['status']!='active' or session['phase'] not in ('teaching','remediation'):
         raise ValueError('Supervision cannot run during assessment or inactive sessions')

@@ -23,7 +23,7 @@ from gurukul.hermes_continuation import load_previous, continuation_input, diges
 from gurukul.store import Store, canonical
 
 sys.path.insert(0, str(ROOT / 'scripts'))
-from hermes_live_teach import display_teaching
+from hermes_live_teach import _display_teaching as display_teaching
 
 FIXTURE = ROOT / 'tests/fixtures/guru_004h_b81269bd.json'
 PROVENANCE = json.loads((ROOT / 'tests/fixtures/guru_004h_b81269bd-provenance.json').read_text())
@@ -38,7 +38,7 @@ class SemanticAuthorityTests(unittest.TestCase):
         self.state = carried_state(None, '')
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name).resolve()
-        self.store = Store(self.root / 'state.sqlite3')
+        self.store = Store(self.root / 'gurukul.sqlite3')
         self.session = self.store.start(EXERCISE)
 
     def tearDown(self):

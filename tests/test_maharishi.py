@@ -36,7 +36,7 @@ class SupervisorTests(unittest.TestCase):
                                   'pedagogy':{'strategy':'comparison'}}}
         self.state=carried_state(None,'')
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name).resolve()
-        self.store=Store(self.root/'state.sqlite3');self.session=self.store.start(EXERCISE)
+        self.store=Store(self.root/'gurukul.sqlite3');self.session=self.store.start(EXERCISE)
     def tearDown(self):self.store.close();self.tmp.cleanup()
     def context(self,text,history=None):return turn_context(self.orientation,self.previous,text,history or [])
     def view(self,text,history=None):return snapshot(self.context(text,history),self.state)
@@ -159,7 +159,7 @@ class SupervisorTests(unittest.TestCase):
         self.assertEqual(1,provider.calls);self.assertEqual(0,audit['provider_calls'])
         self.assertEqual('teaching',self.store.resume()['session']['phase'])
         self.assertEqual(1,self.store.db.execute("SELECT count(*) FROM events WHERE event_type='supervision.call_reserved'").fetchone()[0])
-        self.store.close();self.store=Store(self.root/'state.sqlite3')
+        self.store.close();self.store=Store(self.root/'gurukul.sqlite3')
         _,audit=self.decide(self.view('You are moving in loops.'),provider,limit=1)
         self.assertEqual(1,provider.calls);self.assertEqual('SUPERVISION_FAILED',audit['status'])
 
@@ -230,6 +230,10 @@ class SupervisorTests(unittest.TestCase):
     def test_supervisor_audit_and_state_survive_ledger_reload(self):
         call=str(uuid4());root=self.root/'live';directory=root/call;directory.mkdir(parents=True)
         store=Store(directory/'acceptance.sqlite3');session=store.start(EXERCISE)
+        from gurukul.learning_authority import canonical_teaching
+        authority=canonical_teaching(self.store.path,self.session['id'])
+        store.teaching_authority=authority.__enter__()
+        self.addCleanup(authority.__exit__,None,None,None)
         previous=dict(self.previous,excerpt='Synthetic excerpt',parent_call_id='previous',parent_event_id=None,parent_report_sha256='hash')
         message='Why keep repeating the question?';context=self.context(message)
         state,audit=supervise(snapshot(context,self.state),self.state,FakeProvider(),store,session['id'],call)

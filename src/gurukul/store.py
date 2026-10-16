@@ -17,6 +17,7 @@ def canonical(value):
 
 class Store:
     def __init__(self, path):
+        self.path = Path(path).resolve()
         self.state_dir = Path(path).resolve().parent
         Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.db = sqlite3.connect(path, timeout=10)
@@ -157,12 +158,15 @@ class Store:
              session_id, attempt_id, None, kind + ':' + attempt_id,
              'personal_learning', canonical(payload)))
 
-    def record_submission(self, attempt_id, session_id, source_sha256, timestamp):
+    def record_submission(self, attempt_id, session_id, source_sha256, timestamp, assessment=None):
         with self.db:
             self.db.execute('INSERT INTO attempts VALUES(?,?,?,?)',
                             (attempt_id, session_id, source_sha256, timestamp))
             self._execution_event('execution.submitted', attempt_id, session_id,
                                   timestamp, {'source_sha256': source_sha256})
+            if assessment:
+                self._execution_event('assessment.submission_bound', attempt_id, session_id,
+                                      timestamp, assessment)
 
     def record_execution(self, attempt_id, result, timestamp):
         attempt = self.attempt(attempt_id)

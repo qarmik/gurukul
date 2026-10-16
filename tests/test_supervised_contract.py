@@ -43,12 +43,19 @@ class SupervisedContractTests(unittest.TestCase):
         (self.root / self.root_call).mkdir()
         self.store = Store(self.root / self.root_call / 'acceptance.sqlite3')
         self.session = self.store.start(EXERCISE)
+        from gurukul.learning_authority import canonical_teaching
+        self.canonical = Store(self.root / 'var/gurukul.sqlite3')
+        canonical_session = self.canonical.start(EXERCISE)
+        self.authority = canonical_teaching(self.canonical.path, canonical_session['id'])
+        self.store.teaching_authority = self.authority.__enter__()
         self.config = json.loads((ROOT / 'config/maharishi.json').read_text())
         self.config['model'] = self.config['candidate_model']
         self.manifest = json.loads((ROOT / 'content/sources.json').read_text())
         self.guru_config = json.loads((ROOT / 'config/hermes-live.json').read_text())
 
     def tearDown(self):
+        self.authority.__exit__(None,None,None)
+        self.canonical.close()
         self.store.close()
         self.tmp.cleanup()
 

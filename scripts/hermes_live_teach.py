@@ -27,6 +27,7 @@ from gurukul.store import Store, canonical, now
 from gurukul.anthropic_supervisor import configured_provider
 from gurukul.maharishi import carried_state, snapshot, supervise, control_context, apply_control
 from gurukul.response_contract import ResponseContractError
+from gurukul.learning_authority import canonical_teaching, TeachingLease
 from hermes_import_probe import PIN, installed_runtime
 
 MARKER = 'GURUKUL_LIVE_JSON='
@@ -118,11 +119,19 @@ def conversation_loop(args, turn):
         if latest:
             command = ['python3', 'scripts/hermes_live_teach.py', '--runtime-root',
                        str(args.runtime_root), '--continue', latest]
+            if getattr(args,'session_id',None):command.extend(['--session-id',args.session_id])
             if getattr(args,'maharishi',False):command.append('--maharishi')
             print('Resume the last successful question with:\n' + shlex.join(command))
 
 
-def display_teaching(report):
+def display_teaching(report, authority=None):
+    if not isinstance(authority, TeachingLease):
+        raise ValueError('Canonical tutoring lease required before teaching display.')
+    authority.check()
+    return _display_teaching(report)
+
+
+def _display_teaching(report):
     """One complete explanation; secondary intent responses stay in audit evidence."""
     shown = report.get('display_teaching', report['teaching'])
     judgment = report.get('pedagogy_admission',{}).get('judgment', 'not_applicable')
@@ -139,6 +148,19 @@ def display_teaching(report):
 
 
 def run_locked(args):
+    session_id = getattr(args, 'session_id', None)
+    if not session_id:
+        raise ValueError('Explicit --session-id canonical learner binding is required.')
+    with canonical_teaching(PROJECT / 'var/gurukul.sqlite3', session_id) as lease:
+        exercise = json.loads((PROJECT / 'content/c0_b01/d01.json').read_text())
+        if hashlib.sha256(canonical(exercise).encode()).hexdigest() != lease.exercise_sha256:
+            raise ValueError('Teaching exercise differs from canonical learner authority.')
+        bound_args = copy.copy(args)
+        bound_args.learning_authority = lease
+        return _run_authorized(bound_args)
+
+
+def _run_authorized(args):
     if sys.platform != 'darwin':
         raise ValueError('Live isolation acceptance must run on the Mac')
     os.umask(0o077)
@@ -168,6 +190,8 @@ def run_locked(args):
     continuation = None
     if args.continue_call:
         previous = load_previous(PROJECT / 'var/hermes-live', args.continue_call, manifest, config, exercise)
+        if previous.get('learner_authority') != args.learning_authority.binding():
+            raise ValueError('Saved continuation lacks matching canonical learner authority; historical records are not rebound automatically.')
         if previous.get('supervision_state') and supervisor is None:
             raise ValueError('This continuation has active supervision; resume with --maharishi')
         if getattr(args, 'displayed_call', None) != args.continue_call:
@@ -194,6 +218,7 @@ def run_locked(args):
     ledger = previous['ledger'] if previous else evidence / 'acceptance.sqlite3'
     canary = evidence / 'worker-must-not-create'
     store = Store(ledger)
+    store.teaching_authority = args.learning_authority
     if previous:
         session = store.resume()['session']
         if session['id'] != previous['session_id'] or session['phase'] not in ('teaching', 'remediation'):
@@ -208,6 +233,7 @@ def run_locked(args):
     canary.write_bytes(b'baseline')
     canary.unlink()
     report = {'status': 'BLOCKED', 'call_id': call_id, 'started_at': now(),
+              'learner_authority': args.learning_authority.binding(),
               'scope': 'live_teaching_integration_only', 'hermes_revision': PIN,
               'gurukul_revision': subprocess.check_output(['git', '-C', str(PROJECT), 'rev-parse', 'HEAD'], text=True).strip(),
               'provenance': provenance, 'grants_mastery': False,
@@ -368,7 +394,7 @@ def run_locked(args):
         print(runtime_notice(report) + ' Call: ' + call_id)
         print('Evidence: ' + str(evidence))
     if report['status'] == 'PASS':
-        display_teaching(report)
+        display_teaching(report, args.learning_authority)
     return report
 
 
@@ -378,6 +404,7 @@ def main():
     parser.add_argument('--maharishi',action='store_true',help='Enable account-verified, trigger-driven Anthropic supervision')
     parser.add_argument('--verbose', action='store_true', help='Print full verification JSON after each turn')
     parser.add_argument('--runtime-root', type=Path, default=Path.home() / 'GurukulRuntime')
+    parser.add_argument('--session-id', required=True, help='Canonical learner session UUID in var/gurukul.sqlite3')
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--continue', dest='continue_call', metavar='CALL_UUID',
                        help='Answer the saved question and continue a verified local teaching turn')

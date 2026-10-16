@@ -147,6 +147,7 @@ def load_previous(root, call_id, manifest, config, exercise):
             shown['pedagogy']['next_activity'] = 'pause'
             shown['diagnostic_question'] = ''
     return {'teaching': shown, 'history': history, 'excerpt': excerpt, 'provenance': expected,
+            'learner_authority': report.get('learner_authority'),
             'ledger': ledger, 'session_id': session['id'], 'root_call_id': root_id,
             'unresolved_evidence_question': report.get('pedagogy_admission', {}).get('unresolved_evidence_question') or report.get('pedagogy_admission', {}).get('pending_question', ''),
             'supervision_state': report.get('supervision_state'),
