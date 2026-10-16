@@ -106,6 +106,48 @@ class Store:
                         BEGIN SELECT RAISE(ABORT, 'evidence is append-only'); END''')
             self.db.execute('INSERT INTO schema_version VALUES(2)')
 
+    def _record_evidence_event(self, kind, subject, session, correlation, cause, key, payload):
+        if kind not in {'assistance.recorded', 'evidence.eligibility_recorded'}:
+            raise ValueError('Unsupported evidence event type.')
+        packed = canonical(payload)
+        existing = self.db.execute('SELECT * FROM events WHERE idempotency_key=?', (key,)).fetchone()
+        if existing:
+            if (existing['payload_json'] != packed or existing['event_type'] != kind or
+                    existing['source'] != 'gurukul.evidence' or existing['subject_id'] != subject or
+                    existing['session_id'] != session or existing['correlation_id'] != correlation or
+                    existing['causation_id'] != cause):
+                raise ValueError('Conflicting evidence request identity; history is unchanged.')
+            return json.loads(existing['payload_json'])
+        timestamp = now()
+        self.db.execute('''INSERT INTO events(event_id,event_type,schema_version,
+            occurred_at,recorded_at,source,subject_id,session_id,correlation_id,
+            causation_id,idempotency_key,privacy_class,payload_json)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)''',
+            (str(uuid4()), kind, 1, timestamp, timestamp, 'gurukul.evidence', subject,
+             session, correlation, cause, key, 'personal_learning', packed))
+        return payload
+
+    def record_assistance(self, attempt_id, declaration, failed_attempt_id=None):
+        from .evidence import prepare_assistance
+        with self.db:
+            self.db.execute('BEGIN IMMEDIATE')
+            payload, cause = prepare_assistance(self, attempt_id, declaration, failed_attempt_id)
+            bound = payload['bindings']
+            return self._record_evidence_event('assistance.recorded', attempt_id,
+                bound['session_id'], attempt_id, cause,
+                'assistance.recorded:' + payload['fact']['request_id'], payload)
+
+    def record_eligibility(self, evaluation_id, root):
+        from .evidence import prepare_eligibility
+        with self.db:
+            # Read relevant facts and commit their derived decision under one lock.
+            self.db.execute('BEGIN IMMEDIATE')
+            payload, cause = prepare_eligibility(self, evaluation_id, root)
+            bound = payload['bindings']
+            return self._record_evidence_event('evidence.eligibility_recorded',
+                payload['decision_id'], bound['session_id'], bound['attempt_id'], cause,
+                'evidence.eligibility_recorded:' + payload['decision_id'], payload)
+
     def _execution_event(self, kind, attempt_id, session_id, timestamp, payload):
         self.db.execute('''INSERT INTO events(event_id,event_type,schema_version,
             occurred_at,recorded_at,source,subject_id,session_id,correlation_id,
