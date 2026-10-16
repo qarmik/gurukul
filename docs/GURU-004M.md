@@ -1,11 +1,24 @@
 # GURU-004M v0.1 — Maharishi pedagogical supervisor
 
-Disposition: **PARTIAL PASS / BLOCKED**. The supplied live run verified the account
-and model, deterministic fallback and a real approved Claude ORIENTATION directive.
-The following Guru response failed on two missing parent identity echoes. The
-[targeted contract repair](GURU-004M-contract.md) is offline verified; full integrated
-live acceptance remains pending. GURU-005 remains blocked. Synthetic responses
-do not count as live Guru or Maharishi acceptance.
+Disposition: **PASS — scoped integrated acceptance**, recorded under the
+learner-supplied architect authorization **G004M-CLOSE** on 2026-10-16
+(Asia/Calcutta). The [ledger verification report](GURU-004M-ledger-verification.md)
+contains the learner-supplied Mac receipt, evidence matrix, reservation
+reconciliation, distinctly labelled hashes and architect decision.
+
+The saved sequence proves an approved Anthropic ORIENTATION intervention,
+Gurukul application, direct handling of the learner concern, stale-question
+suppression, profile exit and linked ordinary answer admission. The original
+Guru identity-echo failure and [contract repair](GURU-004M-contract.md) remain
+historical findings. Verification used the original Mac parent evidence at
+`85e109c22dab8796e712713edc2fd12ccd086e17`; it made no new provider calls and did not
+rewrite historical policies or records. Synthetic responses do not count as live
+Guru or Maharishi acceptance.
+
+The original session's supervisor budget is **exhausted: 4/4 reservations**, with
+failed and sibling calls included. Acceptance does not reset the budget or
+authorize further calls. **GURU-004H remains accepted and closed. GURU-005 remains
+BLOCKED pending a separate authorized dispatch.**
 
 ## Architecture and authority
 
@@ -151,11 +164,16 @@ Offline tests cover the canonical failure trajectory, minimal intervention, paus
 question retirement, authority/input checks, provider failures, budget persistence,
 expiry, configuration limits, model verification and ledger rollback/reload.
 The full suite is recorded in [acceptance status](GURU-004M-acceptance.json).
-Exact Mac setup and live checks: [GURU-004M Mac acceptance](GURU-004M-Mac.md).
+Historical setup and live commands are preserved in the
+[Mac procedure](GURU-004M-Mac.md); closure requires no rerun. Current proof and
+scope are in the [ledger verification report](GURU-004M-ledger-verification.md).
 
-Remaining limits: no new live run exists yet; semantic compliance, account API
-parameters and the extra Mac credential denial need actual verification. Detection
-uses a bounded recent window and exact repeat proxy, not a semantic repetition
-guarantee. Existing hard schema/disclosure/scope validation still applies; Maharishi
-does not silently accept malformed or unsafe Guru output. No claim is made that all
-future pedagogical failures are eliminated.
+Remaining limits: accepted live coverage is limited to the saved sequence; no new
+live inference under the final GURU-004H repair is claimed. Historical policy
+versions remain unchanged. `M-SUPERVISOR-RAW-01` remains open and nonblocking;
+the rejected supervisor body's exact rejection cause remains unknown. Bounded
+history and repeat proxies do not guarantee detection of every semantic loop.
+Existing hard schema/disclosure/scope validation still applies; Maharishi does
+not silently accept malformed or unsafe Guru output. Independent learner artifact
+requirements remain, and earlier submission-process findings are not claimed
+repaired. No claim is made that all future pedagogical failures are eliminated.

@@ -1,6 +1,15 @@
 # GURU-004M supervised Guru contract repair
 
-Disposition: **PARTIAL PASS / BLOCKED pending targeted live acceptance**.
+Current status: **PASS — GURU-004M scoped integrated acceptance**, recorded by
+G004M-CLOSE on 2026-10-16. See the
+[learner-supplied Mac ledger verification and architect decision](GURU-004M-ledger-verification.md).
+The findings, prior pending status and commands below are preserved as historical
+records. They are not current rerun instructions. The original session budget is
+exhausted at 4/4 reservations; closure authorizes no new calls or tests.
+`M-SUPERVISOR-RAW-01` remains open and nonblocking. GURU-004H remains closed;
+GURU-005 remains **BLOCKED pending a separate authorized dispatch**.
+
+Historical disposition at contract repair: **PARTIAL PASS / BLOCKED pending targeted live acceptance**.
 Curriculum v0.8.3 governs. GURU-005 remains blocked.
 
 ## Exact failure and repair

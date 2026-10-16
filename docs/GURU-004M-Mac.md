@@ -1,5 +1,15 @@
 # GURU-004M Mac setup and live acceptance
 
+Current status: **PASS — GURU-004M scoped integrated acceptance**, recorded by
+G004M-CLOSE on 2026-10-16. See the
+[learner-supplied Mac ledger verification and architect decision](GURU-004M-ledger-verification.md).
+The procedures, commands and pending-review statements below are historical and
+preserved unchanged. They do not authorize a rerun. The verified original session
+has consumed all 4/4 supervisor reservations; failures, branching and restarting
+do not reset that budget. No test reruns or provider calls are required for closure.
+GURU-004H remains closed. GURU-005 remains **BLOCKED pending a separate authorized
+dispatch**, including after this GURU-004M acceptance.
+
 ## Targeted rerun after the supervised Guru contract repair
 
 Account/model setup and a real approved Claude ORIENTATION intervention have
