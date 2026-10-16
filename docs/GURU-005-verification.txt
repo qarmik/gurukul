@@ -1,3 +1,9 @@
+HISTORICAL POLICY-1 IMPLEMENTATION CAPTURE
+Reviewed commit: 3f5d0daefb01230a0adef59b512f9a968c360970
+The blanket exposure and hash-only relevance rules were subsequently corrected.
+Current proof: docs/GURU-005-timing-verification.txt
+Original captured output follows unchanged.
+
 G005-IMPLEMENT verification
 Reference: 8322435f998bd566c479ac5036300420dd5d02e0
 Platform: Linux-6.18.44-x86_64-with-glibc2.39

@@ -112,6 +112,65 @@ class EvidenceTests(unittest.TestCase):
         self.record(self.fact('hint', steps=['repair'], timing='after_submission'))
         self.assertEqual('READY_FOR_REVIEW', self.review()['eligibility'])
 
+    def test_completed_pair_post_submission_exposure_preserves_readiness_after_restart(self):
+        self.record()
+        before = self.review()
+        fact = self.fact('solution_exposure', timing='after_submission')
+        recorded = self.record(fact)
+        self.store.close()
+        self.store = Store(self.path)
+        current = self.review()
+        self.assertEqual(('READY_FOR_REVIEW', 'DECLARED_ONLY'),
+                         (current['eligibility'], current['independence_status']))
+        self.assertEqual(recorded, self.record(fact))
+        historical = self.store.db.execute('SELECT payload_json FROM events WHERE subject_id=?', (before['decision_id'],)).fetchone()
+        self.assertEqual(before, json.loads(historical[0]))
+
+    def test_hint_after_later_identical_pair_cannot_retroactively_assist_earlier_pair(self):
+        self.record()
+        earlier = self.review()
+        later_failed, later_repaired = self.run_code(FAILED), self.run_code(GOOD)
+        self.record(repaired=later_repaired, failed=later_failed)
+        self.record(self.fact('hint', steps=['repair'], timing='after_submission'),
+                    repaired=later_repaired, failed=later_failed)
+        self.store.close()
+        self.store = Store(self.path)
+        current = self.review()
+        self.assertEqual(('READY_FOR_REVIEW', 'DECLARED_ONLY'),
+                         (current['eligibility'], current['independence_status']))
+        self.assertEqual('READY_FOR_REVIEW', self.review(later_repaired, later_failed)['eligibility'])
+        historical = self.store.db.execute('SELECT payload_json FROM events WHERE subject_id=?', (earlier['decision_id'],)).fetchone()
+        self.assertEqual(earlier, json.loads(historical[0]))
+
+    def test_hash_matching_help_for_other_pair_is_unresolved_not_proven_assistance(self):
+        self.record(self.fact('hint', steps=['repair']))
+        later_failed, later_repaired = self.run_code(FAILED), self.run_code(GOOD)
+        self.record(repaired=later_repaired, failed=later_failed)
+        current = self.review(later_repaired, later_failed)
+        self.assertEqual(('HOLD', 'UNKNOWN'),
+                         (current['eligibility'], current['independence_status']))
+        carried = next(e for e in current['assistance'] if e['fact']['kind']=='hint')
+        self.assertEqual(self.repaired, carried['original_bindings']['attempt_id'])
+
+    def test_late_report_of_during_work_exposure_changes_current_not_historical_decision(self):
+        self.record()
+        earlier = self.review()
+        self.record(self.fact('solution_exposure', timing='during_work'))
+        self.store.close()
+        self.store = Store(self.path)
+        current = self.review()
+        self.assertEqual(('HOLD', 'ASSISTED_OR_EXPOSED'),
+                         (current['eligibility'], current['independence_status']))
+        historical = self.store.db.execute('SELECT payload_json FROM events WHERE subject_id=?', (earlier['decision_id'],)).fetchone()
+        self.assertEqual(earlier, json.loads(historical[0]))
+
+    def test_post_submission_exposure_reported_after_other_pair_has_unresolved_timing(self):
+        later_failed, later_repaired = self.run_code(FAILED), self.run_code(GOOD)
+        self.record(repaired=later_repaired, failed=later_failed)
+        self.record(self.fact('solution_exposure', timing='after_submission'))
+        r = self.review(later_repaired, later_failed)
+        self.assertEqual(('HOLD', 'UNKNOWN'), (r['eligibility'], r['independence_status']))
+
     def exposure(self, timing):
         self.record()
         self.record(self.fact('solution_exposure', timing=timing))
@@ -125,8 +184,10 @@ class EvidenceTests(unittest.TestCase):
     def test_exposure_during_work_holds(self):
         self.exposure('during_work')
 
-    def test_exposure_after_submission_retires_variant_without_erasing_history(self):
-        self.exposure('after_submission')
+    def test_exposure_after_submission_preserves_completed_work(self):
+        self.record()
+        self.record(self.fact('solution_exposure', timing='after_submission'))
+        self.assertEqual('READY_FOR_REVIEW', self.review()['eligibility'])
 
     def test_unknown_timing_cannot_silently_become_no_help(self):
         self.record()
@@ -163,6 +224,42 @@ class EvidenceTests(unittest.TestCase):
         repaired = self.run_code(GOOD.replace('beta', 'other'))
         self.record(repaired=repaired, failed=failed)
         self.assertEqual('HOLD', self.review(repaired, failed)['eligibility'])
+
+    def test_completed_readiness_and_future_variant_restriction_both_survive_restart(self):
+        self.record()
+        original_decision = self.review()
+        exposure = self.record(self.fact('solution_exposure', timing='after_submission'))
+        self.assertEqual('READY_FOR_REVIEW', self.review()['eligibility'])
+        with self.store.db:
+            self.store.db.execute("UPDATE sessions SET status='closed'")
+        self.store.start(CONTENT)
+        failed = self.run_code(FAILED.replace('beta', 'new-text'))
+        repaired = self.run_code(GOOD.replace('beta', 'new-text'))
+        self.record(repaired=repaired, failed=failed)
+        self.store.close()
+        self.store = Store(self.path)
+        past = self.review()
+        future = self.review(repaired, failed)
+        self.assertEqual(('READY_FOR_REVIEW', 'DECLARED_ONLY'), (past['eligibility'], past['independence_status']))
+        self.assertEqual(('HOLD', 'ASSISTED_OR_EXPOSED'), (future['eligibility'], future['independence_status']))
+        carried = next(e for e in future['assistance'] if e['fact']['kind']=='solution_exposure')
+        self.assertEqual('prior_variant_exposure', carried['relevance'])
+        self.assertEqual(exposure['bindings'], carried['original_bindings'])
+        historical = self.store.db.execute('SELECT payload_json FROM events WHERE subject_id=?', (original_decision['decision_id'],)).fetchone()
+        self.assertEqual(original_decision, json.loads(historical[0]))
+        for r in (past, future):
+            self.assertFalse(r['grants_verified_independence'])
+            self.assertFalse(r['grants_mastery'])
+
+    def test_late_report_of_during_work_exposure_still_excludes_subsequent_work(self):
+        later_failed, later_repaired = self.run_code(FAILED), self.run_code(GOOD)
+        self.record(repaired=later_repaired, failed=later_failed)
+        # Report is later than both pairs, occurrence remains scoped during A.
+        self.record(self.fact('solution_exposure', timing='during_work'))
+        current = self.review(later_repaired, later_failed)
+        self.assertEqual(('HOLD', 'ASSISTED_OR_EXPOSED'), (current['eligibility'], current['independence_status']))
+        exposure = next(e for e in current['assistance'] if e['fact']['kind']=='solution_exposure')
+        self.assertEqual('prior_variant_exposure', exposure['relevance'])
 
     def test_identical_replay_and_restart_are_idempotent(self):
         fact = self.fact()

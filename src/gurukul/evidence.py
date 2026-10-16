@@ -8,7 +8,7 @@ from . import checks
 from .pedagogy import orientation
 from .store import canonical
 
-POLICY_VERSION = 'd01-evidence-eligibility-1'
+POLICY_VERSION = 'd01-evidence-eligibility-2-timing'
 KINDS = {'none_declared', 'concept_support', 'hint', 'code_or_repair',
          'solution_exposure', 'unknown'}
 STEPS = {'construction', 'repair', 'concept_practice'}
@@ -139,6 +139,42 @@ def verified_evaluation(store, evaluation_id, root):
     return result, bound, checked, curriculum
 
 
+def occurrence_relevance(store, bound, original, fact, recorded_sequence, exact):
+    """Reported timing stays relative to ORIGINAL work, never a hash-matched pair.
+
+    Submission events bound the retained work, not its unobserved blank-file
+    beginning. Recording order supplies an upper bound on known exposure only;
+    a late report does not say when an after-submission occurrence happened.
+    """
+    original_end = event_for(store, 'execution.submitted', original['attempt_id'])
+    target_end = event_for(store, 'execution.submitted', bound['attempt_id'])
+    target_start = event_for(store, 'execution.submitted', bound['failed_attempt_id'] or bound['attempt_id'])
+    basis = {'reported_timing': fact['timing'],
+             'original_submission_event_id': original_end['event_id'],
+             'original_submission_sequence': original_end['sequence'],
+             'target_submission_event_id': target_end['event_id'],
+             'target_submission_sequence': target_end['sequence'],
+             'target_first_submission_sequence': min(target_start['sequence'], target_end['sequence']),
+             'recorded_sequence': recorded_sequence}
+    if fact['kind'] == 'none_declared':
+        return 'exact_declaration', basis
+    if fact['kind'] == 'concept_support':
+        return 'conceptual_practice_only', basis
+    if fact['timing'] == 'after_submission' and target_end['sequence'] <= original_end['sequence']:
+        return 'after_completed_work', basis
+    if fact['kind'] == 'unknown' or fact['timing'] == 'unknown':
+        return 'unresolved', basis
+    if exact:
+        return 'original_work', basis
+    if fact['kind'] == 'solution_exposure':
+        before_target = original_end['sequence'] < basis['target_first_submission_sequence']
+        if before_target and (fact['timing'] in {'before_work', 'during_work'} or
+                recorded_sequence < basis['target_first_submission_sequence']):
+            return 'prior_variant_exposure', basis
+    # Shared bytes/attempts identify candidates, not causal proof of help.
+    return 'unresolved', basis
+
+
 def relevant_assistance(store, bound):
     facts = []
     target_ids = {bound['attempt_id'], bound['failed_attempt_id']} - {None}
@@ -162,8 +198,11 @@ def relevant_assistance(store, bound):
                 row['session_id'] != other['session_id'] or row['subject_id'] != other['attempt_id'] or
                 row['causation_id'] != cause or row['idempotency_key'] != 'assistance.recorded:' + fact['request_id']):
             raise ValueError('Assistance event bindings/provenance mismatch.')
+        relevance, basis = occurrence_relevance(store, bound, other, fact, row['sequence'], exact)
         facts.append({'event_id': row['event_id'], 'payload_sha256': digest(payload),
                       'provenance': payload['provenance'], 'fact': fact,
+                      'original_bindings': other, 'recorded_at': row['recorded_at'],
+                      'relevance': relevance, 'timing_basis': basis,
                       'exact_pair': exact, 'same_source': same_source})
     return facts
 
@@ -171,30 +210,33 @@ def relevant_assistance(store, bound):
 def prepare_eligibility(store, evaluation_id, root):
     result, bound, checked, curriculum = verified_evaluation(store, evaluation_id, root)
     facts = relevant_assistance(store, bound)
-    coverage, helped, unknown, exposed = set(), set(), set(), False
+    coverage, helped, unknown, direct_unknown, exposed = set(), set(), set(), set(), False
     supported = False
     for entry in facts:
         fact = entry['fact']
         supported |= entry['provenance']['status'] == 'supported_observation'
         steps = set(fact['steps']) & {'construction', 'repair'}
-        if fact['kind'] == 'none_declared' and entry['exact_pair']:
+        relevance = entry['relevance']
+        if relevance == 'exact_declaration':
             coverage |= steps
+        elif relevance in {'after_completed_work', 'conceptual_practice_only'}:
+            continue
+        elif relevance == 'unresolved':
+            affected = {'construction', 'repair'} if fact['kind'] == 'solution_exposure' else steps
+            unknown |= affected
+            if entry['exact_pair']:
+                direct_unknown |= affected
         elif fact['kind'] == 'solution_exposure':
             exposed = True
-        elif fact['kind'] == 'unknown' or (steps and fact['timing'] == 'unknown'):
-            unknown |= steps
-        elif fact['kind'] in {'hint', 'code_or_repair'} and steps:
-            # Help after a submission does not rewrite that work's history. A
-            # resubmitted copy cannot use that exception to claim fresh independence.
-            if fact['timing'] != 'after_submission' or not entry['exact_pair']:
-                helped |= steps
-    conflicts = coverage & (helped | unknown)
+        elif relevance == 'original_work' and fact['kind'] in {'hint', 'code_or_repair'}:
+            helped |= steps
+    conflicts = coverage & (helped | direct_unknown)
     reasons = []
     if result['outcome'] != 'CHECKS_PASS': reasons.append('D01 deterministic evidence is incomplete, failed, blocked or requires review.')
     if coverage != {'construction', 'repair'}: reasons.append('No complete exact-pair no-help declaration for construction and repair.')
     if helped: reasons.append('Relevant assistance recorded for: ' + ', '.join(sorted(helped)) + '.')
-    if unknown: reasons.append('Assistance timing or extent remains unknown for: ' + ', '.join(sorted(unknown)) + '.')
-    if exposed: reasons.append('Solution exposure recorded for this pinned D01 exercise; this slice cannot establish a fresh assessment variant.')
+    if unknown: reasons.append('Assistance occurrence, scope or relevance remains unresolved for: ' + ', '.join(sorted(unknown)) + '.')
+    if exposed: reasons.append('Solution exposure affects this work or predates its saved attempts; this slice cannot establish a fresh assessment variant.')
     if conflicts: reasons.append('Conflicting assistance declarations/observations remain in the audit.')
     ready = not reasons
     status = ('ASSISTED_OR_EXPOSED' if helped or exposed else

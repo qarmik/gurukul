@@ -5,6 +5,12 @@ pending**. Reference: `8322435f998bd566c479ac5036300420dd5d02e0`. GURU-004H and
 GURU-004M remain accepted and closed. This increment adds no provider calls,
 supervisor budget changes, assessment orchestration or retrieval scheduling.
 
+Current eligibility policy: `d01-evidence-eligibility-2-timing`, repaired under
+G005-TIMING-REPAIR from reviewed implementation
+`3f5d0daefb01230a0adef59b512f9a968c360970`. The original implementation's blanket
+exposure rule and hash-only transfer of assistance were incorrect. Historical
+facts and decisions remain immutable; the corrected policy derives new decisions.
+
 ## Meaning and authority
 
 `eligibility` reads the retained D01 source and execution evidence, reuses the
@@ -15,7 +21,7 @@ independent mastery remain distinct observations.
 
 | Result | Meaning |
 | --- | --- |
-| `HOLD` | Deterministic evidence is missing, failed, blocked or needs review; assistance is unresolved/conflicting; relevant help or solution exposure is recorded; or a complete exact-pair no-help declaration is absent. Practice evidence remains retained. |
+| `HOLD` | Deterministic evidence is missing, failed, blocked or needs review; assistance relevance is unresolved/conflicting; help/exposure affected the original work or prior exposure restricts subsequent work; or a complete exact-pair no-help declaration is absent. Practice evidence remains retained. |
 | `READY_FOR_REVIEW` | Supported deterministic requirements pass, construction and repair have exact-pair no-help declarations, and no relevant disqualifying fact is recorded. **Declaration-only readiness requires review. It is not verified independence or a gate pass.** |
 
 Every decision has `requires_review:true`, `grants_verified_independence:false`,
@@ -101,15 +107,39 @@ or grant authority to lexical hints or Guru/Maharishi labels.
   work as assisted; resubmitting the same source does not inherit this exception.
 - Unknown timing/extent remains unresolved. A later contradictory no-help claim
   cannot silently erase relevant assistance or unknown facts.
-- Solution exposure excludes the pinned D01 exercise from independent-credit
-  readiness, whether exposure was before, during or after submission. A changed
-  source file, session or attempt UUID is not evidence of a fresh assessment
-  variant. No fresh-variant generation or scheduling is implemented.
-- Relevant negative facts follow overlapping attempts and identical retained
-  source hashes for the same pinned exercise. Positive declarations never
-  transfer to another pair. Equal source bytes do not prove copying or misconduct;
-  they prevent a new identifier from manufacturing verified freshness. Practice
-  evidence remains available throughout.
+- Exposure genuinely after the original submission preserves that completed
+  pair's declaration-only readiness. Exposure before/during that work holds its
+  eligibility, even if reported much later. Recording time does not replace the
+  reported occurrence scope.
+- Prior solution exposure restricts subsequent work on the pinned D01 variant.
+  A new source file, session or attempt UUID does not establish freshness. If
+  exposure is reported after A and before B's first saved submission, B is held
+  for prior variant exposure. If an after-A occurrence is only reported after B,
+  its relationship to B remains unresolved; B is HOLD/UNKNOWN, not falsely marked
+  as proven exposed. No fresh-variant generation or scheduling is implemented.
+- Every carried fact retains `original_bindings`, `recorded_at` and a derived
+  `timing_basis`. Its timing always refers to its original pair. A hint after
+  later pair B cannot retroactively mark earlier completed A assisted merely
+  because their source bytes match. Equal hashes/overlapping attempts identify
+  candidate facts, not causal proof that help affected another pair. Ambiguous
+  cross-pair relevance remains HOLD/UNKNOWN and is not itself a contradictory
+  declaration about that pair. Positive declarations never transfer.
+
+| Occurrence and work relationship | Current result with passing checks and exact-pair declarations |
+| --- | --- |
+| Exposure genuinely after completed A | A remains READY_FOR_REVIEW/DECLARED_ONLY; the exposure fact stays recorded. |
+| Exposure during A, reported later | A becomes HOLD/ASSISTED_OR_EXPOSED; historical decisions are unchanged. |
+| Hint after later B, source matches earlier A | A remains READY_FOR_REVIEW/DECLARED_ONLY; the original B binding is retained. |
+| Exposure known before subsequent B's saved work | B is HOLD/ASSISTED_OR_EXPOSED even with new source/session/attempt IDs. |
+| After-A exposure reported only after B, ordering relative to B unknown | B is HOLD/UNKNOWN; recording time alone does not establish occurrence time. |
+
+These comparisons use parent event sequence and the original submission anchors.
+The first retained submission is not proof of when blank-file construction began.
+For before/during-A exposure, the reported original scope supplies the occurrence
+upper bound; a late report does not move it after A. For after-A exposure, a report
+before B establishes that exposure was already known before B's saved work; a
+report after B leaves the occurrence order unresolved. Practice evidence is
+retained in every case, and no readiness state verifies independence.
 
 `assistance_provenance` distinguishes UNKNOWN, DECLARED_ONLY,
 SUPPORTED_OBSERVATIONS and CONFLICTING. A supported observation additionally uses
@@ -165,8 +195,11 @@ hints, conceptual support, exact-pair and identical-source behavior, idempotency
 transaction failures, source/output/evaluation/curriculum integrity, parent-event
 provenance, schema/authority rejection and separate-process CLI persistence.
 
-See [captured verification and synthetic CLI output](GURU-005-verification.txt)
-for the actual platform, commands and results. Tests use synthetic fixtures and
+See [timing-repair regressions, verification and synthetic CLI output](GURU-005-timing-verification.txt)
+for the current platform, commands, pre-repair failures and post-repair results.
+The [original implementation capture](GURU-005-verification.txt) remains historical
+evidence under policy 1, not a statement of the corrected timing policy.
+Tests use synthetic fixtures and
 temporary databases; their passing status is implementation evidence, not learner
 mastery. GURU-004H and GURU-004M remain closed. GURU-005 acceptance awaits architect
 review of this implementation evidence.
