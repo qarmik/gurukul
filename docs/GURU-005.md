@@ -1,9 +1,12 @@
 # GURU-005 — assistance-aware D01 evidence eligibility
 
-Disposition: **implementation evidence ready for architect review; acceptance
-pending**. Reference: `8322435f998bd566c479ac5036300420dd5d02e0`. GURU-004H and
-GURU-004M remain accepted and closed. This increment adds no provider calls,
-supervisor budget changes, assessment orchestration or retrieval scheduling.
+Architect disposition: **PASS — GURU-005 accepted within its stated evidence-
+eligibility slice**, recorded under the learner-supplied **G005-CLOSE** dispatch
+on 2026-10-16 (Asia/Calcutta). Reviewed implementation:
+`8238226a217b5a07df2d176466e4f99aba8fb843`. Implementation reference:
+`8322435f998bd566c479ac5036300420dd5d02e0`. GURU-004H and GURU-004M remain accepted
+and closed. GURU-006 requires a separate dispatch. This increment adds no provider
+calls, supervisor budget changes, assessment orchestration or retrieval scheduling.
 
 Current eligibility policy: `d01-evidence-eligibility-2-timing`, repaired under
 G005-TIMING-REPAIR from reviewed implementation
@@ -201,5 +204,51 @@ The [original implementation capture](GURU-005-verification.txt) remains histori
 evidence under policy 1, not a statement of the corrected timing policy.
 Tests use synthetic fixtures and
 temporary databases; their passing status is implementation evidence, not learner
-mastery. GURU-004H and GURU-004M remain closed. GURU-005 acceptance awaits architect
-review of this implementation evidence.
+mastery. GURU-004H and GURU-004M remain closed. The scoped acceptance decision is
+recorded below; the verification captures remain unchanged.
+
+## Architect decision — G005-CLOSE — ACCEPTED
+
+The learner supplied the architect's G005-CLOSE authorization on 2026-10-16:
+**GURU-005 is accepted within its stated slice.** The reviewed implementation is
+`8238226a217b5a07df2d176466e4f99aba8fb843`, on top of original implementation
+`3f5d0daefb01230a0adef59b512f9a968c360970`.
+
+Accepted execution evidence was captured on Linux x86_64, Python 3.12.14:
+
+| Evidence | Actual result |
+| --- | --- |
+| Pre-repair timing regressions against the reviewed original implementation | 5 cases, 4 failures; retained as the defect demonstration. |
+| Post-repair focused evidence suite | `Ran 39 tests in 2.318s`, `OK`. |
+| Completed post-repair full suite | `Ran 274 tests in 7.545s`, `OK (skipped=1)`. The skip requires actual macOS `sandbox-exec`. |
+| Synthetic separate-process CLI demonstration | Completed A retains declaration-only readiness after genuine post-submission exposure; later B is held for prior exposure; a hint after B does not retroactively assist A; late reporting of exposure during A changes current A eligibility to HOLD. Historical facts and decisions remain unchanged. |
+
+The [timing verification capture](GURU-005-timing-verification.txt) also records
+an earlier interrupted full-suite invocation without a unittest summary. No pass
+is claimed for that incomplete invocation. The completed result above and both
+original verification captures are preserved; closure requires no test rerun.
+
+Acceptance covers persistent, assistance-aware D01 eligibility yielding HOLD or
+READY_FOR_REVIEW, with original fact bindings, occurrence/recording distinctions,
+future exposure restrictions, idempotency and restart persistence. Readiness is
+declaration-only and requires review. Matching hashes alone do not prove that
+help affected another pair; ambiguous relevance remains unresolved.
+
+Retained limitations and authority boundaries:
+
+- No verified independence, mastery, session-phase change, gate pass or curriculum
+  advancement is granted. Practice evidence remains retained.
+- Reported assistance and occurrence scope are not external attestation. Missing
+  or ambiguous assistance remains unresolved; first submission does not establish
+  the unobserved start of blank-file construction.
+- Cross-ledger support imports remain rejected. Fresh-variant creation, assessment
+  orchestration, retrieval scheduling and correction/override workflows are outside
+  this slice. Future work on an exposed variant does not gain freshness merely
+  through new source bytes, attempt IDs or session IDs.
+- These are synthetic implementation tests and demonstrations, not learner mastery
+  evidence or new Mac execution. No provider calls, budget changes, learner-state
+  updates or backfills are part of closure.
+
+G005-CLOSE authorizes the documentation commit and fast-forward publication of the
+accepted branch to `main`. **GURU-004H and GURU-004M remain closed. GURU-005 is
+accepted within this slice. GURU-006 requires a separate authorized dispatch.**
