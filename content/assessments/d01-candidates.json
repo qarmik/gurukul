@@ -25,10 +25,10 @@
       },
       "rules_sha256": "c8b8bc914b99843047c860a8a66fc761cd2bdd8ede783e50ffe324ebe51d59f6",
       "approval": {
-        "status": "unapproved",
-        "reference": null,
-        "descriptor_sha256": null,
-        "rules_sha256": null
+        "status": "approved",
+        "reference": "G006-CATALOGUE-RECORD",
+        "descriptor_sha256": "c86dabca70790a631150cb0ecac3ddf126b4d1279ba6bc6826657fe0bfcf33dd",
+        "rules_sha256": "c8b8bc914b99843047c860a8a66fc761cd2bdd8ede783e50ffe324ebe51d59f6"
       }
     },
     {
@@ -55,10 +55,10 @@
       },
       "rules_sha256": "c8b8bc914b99843047c860a8a66fc761cd2bdd8ede783e50ffe324ebe51d59f6",
       "approval": {
-        "status": "unapproved",
-        "reference": null,
-        "descriptor_sha256": null,
-        "rules_sha256": null
+        "status": "approved",
+        "reference": "G006-CATALOGUE-RECORD",
+        "descriptor_sha256": "8185f84147c0c5f6ba737f609618c309f543db891ea1b8d12423e572a292ee53",
+        "rules_sha256": "c8b8bc914b99843047c860a8a66fc761cd2bdd8ede783e50ffe324ebe51d59f6"
       }
     }
   ]

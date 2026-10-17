@@ -1,0 +1,54 @@
+G006-CATALOGUE-RECORD — SCOPED ACCEPTANCE AND APPROVAL VERIFICATION
+Reviewed runtime: dc4b4c8131a03df2ab4c7e47e886b7114d00b927
+Branch: guru-006-assessment-lifecycle
+Linux-6.18.44-x86_64-with-glibc2.39
+Python 3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]
+
+ACTUAL AFFECTED-SUITE COMMAND:
+PYTHONPATH=src:tests python3 -u -B -m unittest test_assessment test_assessment_boundaries
+.........................................
+----------------------------------------------------------------------
+Ran 41 tests in 3.853s
+
+OK
+
+CATALOGUE COMPARISON: prior reviewed index versus updated working file. Descriptor/rule hashes below cover canonical JSON, not whole files.
+[
+  {
+    "id": "d01-counter-a",
+    "descriptor_sha256": "c86dabca70790a631150cb0ecac3ddf126b4d1279ba6bc6826657fe0bfcf33dd",
+    "rules_sha256": "c8b8bc914b99843047c860a8a66fc761cd2bdd8ede783e50ffe324ebe51d59f6",
+    "only_approval_changed": true,
+    "approval": {
+      "status": "approved",
+      "reference": "G006-CATALOGUE-RECORD",
+      "descriptor_sha256": "c86dabca70790a631150cb0ecac3ddf126b4d1279ba6bc6826657fe0bfcf33dd",
+      "rules_sha256": "c8b8bc914b99843047c860a8a66fc761cd2bdd8ede783e50ffe324ebe51d59f6"
+    }
+  },
+  {
+    "id": "d01-stock-b",
+    "descriptor_sha256": "8185f84147c0c5f6ba737f609618c309f543db891ea1b8d12423e572a292ee53",
+    "rules_sha256": "c8b8bc914b99843047c860a8a66fc761cd2bdd8ede783e50ffe324ebe51d59f6",
+    "only_approval_changed": true,
+    "approval": {
+      "status": "approved",
+      "reference": "G006-CATALOGUE-RECORD",
+      "descriptor_sha256": "8185f84147c0c5f6ba737f609618c309f543db891ea1b8d12423e572a292ee53",
+      "rules_sha256": "c8b8bc914b99843047c860a8a66fc761cd2bdd8ede783e50ffe324ebe51d59f6"
+    }
+  }
+]
+
+UNCHANGED RUNTIME / HISTORICAL CAPTURES — SHA-256 of whole-file bytes:
+src/gurukul/assessment.py fa0018d72f2d2e1d731e5f313e4239b607888ca27348d5b487c91475e52e71a0
+src/gurukul/learning_authority.py ed4078cf9bd06b235c59b0926614b5ed3f2b4b524834c43e8232d2ada7dc9722
+scripts/hermes_live_teach.py 893b238a9a77f1b44cb418fce5abe79bf02aa8f75174a781ffaf55b504b396dd
+src/gurukul/checks.py 492a843003c8e39d206db1ea0c24847b7da843a3a3d4d5fa58a59c0d46957fc1
+content/checks/d01-v1.json 9f37d6720388349332a0c42d411e3d2d38e6153e4b29c7a8474003052dd1282c
+docs/GURU-006-verification.txt 3c45dd78711d4ae9da7b468d6a01a0c65efc84f7b07a97cd78b5c4d635e11d84
+docs/GURU-006-boundary-verification.txt 72e93470360707324ba89b5201fb13d7bb705ffe822738041fbe60654450a8f0
+
+Historical correction: final 124-focused capture was incomplete; no 124-test pass is claimed. Earlier completed focused receipt: 123 tests. Raw historical captures are preserved, including prior inaccurate summary wording. Valid final boundary receipts remain 152 focused and 314 full (skipped=1).
+
+Implementation and exact catalogue content accepted within scope. Actual delayed learner retrieval remains pending. No new full-suite claim; no runtime changes, providers, real learner assessments, learner-state updates, mastery or curriculum advancement. GURU-004H/M and GURU-005 remain closed.

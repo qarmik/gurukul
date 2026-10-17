@@ -14,7 +14,7 @@ import unittest
 from unittest.mock import patch
 from uuid import uuid4
 
-from gurukul.assessment import Controller,catalogue,events,sha
+from gurukul.assessment import Controller,catalogue,candidate,events,sha
 from gurukul.checks import evaluate
 from gurukul.store import Store
 from gurukul.submissions import submit,inspect
@@ -75,13 +75,32 @@ class AssessmentTests(unittest.TestCase):
     def declare(self,f,p,kind='none_declared'):
         return self.store.record_assistance(p['id'],{'request_id':str(uuid4()),'kind':kind,'steps':['construction','repair'],'timing':'during_work','origin':'learner_declaration'},f['id'])
 
-    def test_production_catalogue_unapproved_and_exact_hashes(self):
+    def test_production_catalogue_approved_with_exact_reviewed_bindings(self):
         data=catalogue(ROOT)
-        self.assertEqual(['unapproved','unapproved'],[c['approval']['status'] for c in data['candidates']])
+        expected={'d01-counter-a':'c86dabca70790a631150cb0ecac3ddf126b4d1279ba6bc6826657fe0bfcf33dd',
+                  'd01-stock-b':'8185f84147c0c5f6ba737f609618c309f543db891ea1b8d12423e572a292ee53'}
+        self.assertEqual(set(expected),{c['id'] for c in data['candidates']})
+        for c in data['candidates']:
+            self.assertEqual(expected[c['id']],c['descriptor_sha256'])
+            self.assertEqual('c8b8bc914b99843047c860a8a66fc761cd2bdd8ede783e50ffe324ebe51d59f6',c['rules_sha256'])
+            self.assertEqual({'status':'approved','reference':'G006-CATALOGUE-RECORD',
+                              'descriptor_sha256':expected[c['id']],'rules_sha256':c['rules_sha256']},c['approval'])
+            self.assertEqual(c,candidate(ROOT,c['id'],sha(CONTENT)))
         r=self.due()
-        with self.assertRaisesRegex(ValueError,'not approved'):
-            self.call('open',retrieval_id=r['retrieval_id'],variant_id='d01-counter-a')
+        opened=self.call('open',retrieval_id=r['retrieval_id'],variant_id='d01-counter-a')
+        self.assertEqual('G006-CATALOGUE-RECORD',opened['variant']['approval']['reference'])
+
+    def test_unapproved_temporary_candidates_remain_unavailable(self):
+        path=self.root/'content/assessments/d01-candidates.json';data=json.loads(path.read_text())
+        for c in data['candidates']:
+            c['approval']={'status':'unapproved','reference':None,'descriptor_sha256':None,'rules_sha256':None}
+        path.write_text(json.dumps(data))
+        r=self.due()
+        for c in data['candidates']:
+            with self.assertRaisesRegex(ValueError,'not approved'):
+                self.call('open',retrieval_id=r['retrieval_id'],variant_id=c['id'])
         self.assertEqual('teaching',self.store.resume()['session']['phase'])
+        self.assertEqual([],events(self.store.db,'assessment.opened'))
 
     def test_schedule_due_does_not_open_or_grant_authority(self):
         r=self.call('schedule',anchor_event_id=self.anchor)

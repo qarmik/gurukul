@@ -1,7 +1,10 @@
 # GURU-006 — bounded D01 retrieval and assessment
 
-Disposition: **implementation evidence ready for architect review; acceptance
-pending**. Parent reference `8f2c34588652ebea03f1fe05c33ab91a51a9a608`.
+Architect disposition: **PASS — GURU-006 implementation and the two catalogue
+entries accepted within scope**, recorded under `G006-CATALOGUE-RECORD` on
+2026-10-17 (Asia/Calcutta). Reviewed implementation:
+`dc4b4c8131a03df2ab4c7e47e886b7114d00b927`. Original parent reference:
+`8f2c34588652ebea03f1fe05c33ab91a51a9a608`.
 GURU-004H, GURU-004M and GURU-005 remain accepted and closed. This increment
 uses synthetic data and mocked providers only. No learner assessment, provider
 call, verified independence, mastery or curriculum advancement was performed.
@@ -10,8 +13,10 @@ Current boundary repair: reviewed starting commit
 `38f0858a149c3e10b058fd628b59023e5a10da63`; see the
 [boundary verification capture](GURU-006-boundary-verification.txt).
 Final repair verification: **152 focused tests, OK; 314 full-suite tests,
-OK (skipped=1)** on Linux x86_64 / Python 3.12.14. Catalogue approvals and actual
-delayed retrieval remain outstanding; implementation acceptance is pending.
+OK (skipped=1)** on Linux x86_64 / Python 3.12.14. Implementation and exact
+catalogue content are accepted; **actual delayed learner retrieval remains
+pending**. See the
+[catalogue recording verification](GURU-006-catalogue-verification.txt).
 
 ## Authority and persistence
 
@@ -138,11 +143,15 @@ CHECKS_PASS, READY_FOR_REVIEW nor COMPLETED_FOR_REVIEW grants independent credit
 mastery, progression, or a curriculum gate. A help exit records the request and
 phase change; it does not falsely claim help was actually delivered.
 
-## Candidate catalogue for architect review
+## Approved candidate catalogue
 
-`content/assessments/d01-candidates.json` contains two **unapproved** candidates.
-Production opening refuses both. Approval requires an explicit reference and the
-exact reviewed descriptor/rule hashes; tests approve temporary copies only.
+`content/assessments/d01-candidates.json` contains two **approved** entries under
+reference `G006-CATALOGUE-RECORD`. Each approval repeats its exact reviewed
+descriptor/rule hashes. Only approval fields changed at admission; descriptors,
+task data and conformity rules remain identical to the reviewed implementation.
+Approval admits catalogue content; opening still requires due-state, exposure,
+freshness and canonical-session checks. Unapproved temporary fixtures remain
+unavailable for assessment.
 Hashes below cover canonical JSON objects, not whole files.
 
 | Candidate | Five initial values | Two reassignments | Descriptor SHA-256 |
@@ -181,8 +190,11 @@ failures, assistance, reservations and decisions remain immutable.
 [Captured verification](GURU-006-verification.txt) records Linux x86_64,
 Python 3.12.14:
 
-- Focused lifecycle and affected integration suites: **124 tests, OK**, including
-  32 new lifecycle tests in `tests/test_assessment.py`.
+- Corrected historical focused result: the earlier completed receipt contains
+  **123 tests, OK**. The later final focused capture was incomplete and does not
+  support the previously reported 124-test pass. Raw captures are preserved;
+  their prior summary wording is superseded by this correction. The valid final
+  boundary-repair results remain 152 focused / 314 full-suite tests below.
 - Completed full suite: **306 tests, OK (skipped=1)**. The skip requires actual
   macOS sandbox-exec. Incomplete earlier process invocations are explicitly
   retained in the capture and are not passing results.
@@ -199,9 +211,10 @@ Python 3.12.14:
 Simulated clocks and a backdated synthetic practice anchor prove scheduling
 behavior only, **not actual delayed learner retrieval**. The CLI capture used a
 temporary database and temporary catalogue approvals, never real learner state.
-Catalogue approval, actual delayed retrieval and GURU-006 acceptance remain
-separate architect decisions. No new Mac/provider evidence is claimed. There is
-no daemon scheduler, external identity/clock attestation, assessment orchestration
+At the original implementation stage, catalogue approval and implementation
+acceptance were pending. They are now accepted below; actual delayed retrieval
+remains a separate, outstanding evidence claim. No new Mac/provider evidence is
+claimed. There is no daemon scheduler, external identity/clock attestation, assessment orchestration
 beyond this D01 slice, generic NLP mechanism, mastery award or gate advancement.
 
 ## G006-BOUNDARY-REPAIR verification
@@ -235,5 +248,51 @@ with its full 24-hour delay, and a pending interrupted snapshot/reservation
 retained unchanged through audited clock-review exit and duplicate replay.
 Historical row-prefix comparisons remain equal. No provider or real learner
 assessment was run. The production catalogue and accepted checker/curriculum
-remain unchanged; both candidates are still unapproved. GURU-006 acceptance
-remains pending, and GURU-004H, GURU-004M and GURU-005 remain closed.
+remained unchanged at that repair stage, when both candidates were unapproved
+and implementation acceptance was pending. The following architect decision
+supersedes that disposition. GURU-004H, GURU-004M and GURU-005 remain closed.
+
+## Architect decision — G006-CATALOGUE-RECORD — ACCEPTED
+
+The learner supplied the architect's recording dispatch on 2026-10-17:
+**GURU-006 implementation and catalogue content are accepted within scope.**
+Reviewed runtime: `dc4b4c8131a03df2ab4c7e47e886b7114d00b927`, including the
+bounded lifecycle and three boundary repairs. GURU-004H, GURU-004M and GURU-005
+remain accepted and closed.
+
+| Acceptance claim | Recorded disposition |
+| --- | --- |
+| Persisted D01 retrieval/assessment implementation and boundary repair | Accepted within the documented slice; valid final 152-focused / 314-full results retained. |
+| `d01-counter-a` and `d01-stock-b` catalogue content | Approved under G006-CATALOGUE-RECORD with the exact descriptor and rule hashes listed above. |
+| Actual delayed learner retrieval | Pending; simulated clocks and synthetic artifacts cannot establish it. |
+| Independent learner capability, mastery or curriculum advancement | Not established or awarded by implementation/catalogue acceptance. |
+
+Approval changes only `status`, `reference`, `descriptor_sha256` and
+`rules_sha256` inside each entry's `approval` object. No runtime, checker,
+curriculum, descriptors, task data, conformity rules, learner state or historical
+policy records changed. The catalogue tests assert the exact production approval
+bindings and retain explicit unapproved rejection in temporary fixtures. Existing
+tampering, wrong-variant, exposure and used-variant cases remain in the affected
+suites.
+
+[Recording verification](GURU-006-catalogue-verification.txt) captures Linux
+x86_64 / Python 3.12.14:
+
+```text
+PYTHONPATH=src:tests python3 -u -B -m unittest test_assessment test_assessment_boundaries
+Ran 41 tests in 3.853s
+OK
+```
+
+No further suite was required for these approval/test/documentation changes. The
+original raw verification captures remain unchanged, including the incomplete
+final focused capture previously misreported as 124 passing tests. The earlier
+completed focused receipt is 123 tests; the boundary repair's completed 152/314
+receipts remain valid. No provider calls, real learner assessments or learner-state
+updates occurred. Consumed reservations, prior exposure, assistance and failures
+remain immutable. Opening an approved entry does not waive freshness checks, and
+new IDs or source bytes cannot establish freshness. There is no independence,
+mastery or progression award. Actual delayed retrieval remains pending.
+
+This recording dispatch authorizes a commit on `guru-006-assessment-lifecycle`
+and fast-forward publication to `main`, preserving unrelated work.
