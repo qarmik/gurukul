@@ -65,3 +65,7 @@ The synthetic anchor is deliberately backdated in disposable test fixtures. It i
 **Missing acceptance evidence:** the cloud browser returned `net::ERR_CONNECTION_REFUSED` on authenticated loopback navigation, including with the synthetic server held open. No public tunnel or broader binding was used. Therefore the browser edit/Run/Submit workflow, reconnect UI behavior and visual layout are not claimed verified. HTTP/service checks and JS syntax do not substitute for that proof. A local target-browser workflow and Mac Finder launch remain required before a full workspace PASS. No real learner attempt should be started for that verification; use disposable synthetic state.
 
 The old interrupted learner attempt has a separate local supplied-receipt reconciliation. That learner-specific report is excluded from publication and supplied privately with the handoff. The attempt is not regraded, reopened or used as a fixture here.
+
+## G007-BROWSER-VERIFY follow-up
+
+The [browser-verification receipt](GURU-007-browser-verification.md) records reproduced draft-saving races, the minimal JavaScript repair and focused before/after captures. Mac browser and Finder verification remain blocked by unavailable Mac access. This follow-up does not upgrade implementation acceptance or the original full-suite claim.

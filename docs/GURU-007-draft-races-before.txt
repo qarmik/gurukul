@@ -1,0 +1,107 @@
+✖ final autosave fired while Run busy is eventually persisted (5.62857ms)
+✖ typing during a slow save queues the final edit without another keystroke (1.324698ms)
+✖ old periodic read arriving after save cannot create false conflict (1.572222ms)
+✖ a response for the previous context cannot switch back or replace text (2.11443ms)
+✖ typing while explicit reload awaits response is preserved and marked unsaved (1.123344ms)
+✔ external newer revision is a conflict; latest editor text is retained (1.53201ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 1
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 104.481355
+
+✖ failing tests:
+
+test at tests/test_workspace_drafts.mjs:40:1
+✖ final autosave fired while Run busy is eventually persisted (5.62857ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'first revision'
+  - 'latest while running'
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/d9dc4f68e843/gurukul/tests/test_workspace_drafts.mjs:47:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'first revision',
+    expected: 'latest while running',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/test_workspace_drafts.mjs:51:1
+✖ typing during a slow save queues the final edit without another keystroke (1.324698ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'first' !== 'last'
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/d9dc4f68e843/gurukul/tests/test_workspace_drafts.mjs:55:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'first',
+    expected: 'last',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/test_workspace_drafts.mjs:58:1
+✖ old periodic read arriving after save cannot create false conflict (1.572222ms)
+  AssertionError [ERR_ASSERTION]: The input was expected to not match the regular expression /conflict/i. Input:
+  
+  'Draft conflict — editor preserved'
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/d9dc4f68e843/gurukul/tests/test_workspace_drafts.mjs:63:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Draft conflict — editor preserved',
+    expected: /conflict/i,
+    operator: 'doesNotMatch',
+    diff: 'simple'
+  }
+
+test at tests/test_workspace_drafts.mjs:67:1
+✖ a response for the previous context cannot switch back or replace text (2.11443ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'practice'
+  - 'synthetic-assessment'
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/d9dc4f68e843/gurukul/tests/test_workspace_drafts.mjs:72:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'practice',
+    expected: 'synthetic-assessment',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/test_workspace_drafts.mjs:76:1
+✖ typing while explicit reload awaits response is preserved and marked unsaved (1.123344ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + ''
+  - 'new text during reload'
+  
+      at TestContext.<anonymous> (file:///workspace/scratch/d9dc4f68e843/gurukul/tests/test_workspace_drafts.mjs:79:9)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '',
+    expected: 'new text during reload',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

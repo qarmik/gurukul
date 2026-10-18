@@ -1,6 +1,14 @@
 'use strict';
 const el=id=>document.getElementById(id);
 let context=null,revision=0,saved='',dirty=false,busy=false,conflict=false,loading=false,timer=null,latestState=null;
+let generation=0,readSerial=0,transitioning=false,saveTimer;
+function indicator(){el('saved').textContent=!loading?'Loading saved draft…':conflict?'Draft conflict — editor preserved':dirty?'Unsaved changes':'Saved revision '+revision;}
+function scheduleSave(){clearTimeout(saveTimer);saveTimer=setTimeout(()=>action(save),500);}
+function changeContext(next){
+ ++generation;++readSerial;context=next;loading=false;revision=0;saved='';dirty=false;conflict=false;
+ el('editor').value='';latestState=null;indicator();controls();
+}
+
 const say=text=>{el('message').textContent=text;};
 async function api(path,body){
  const response=await fetch(path,{method:body===undefined?'GET':'POST',headers:body===undefined?{}:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
@@ -8,10 +16,10 @@ async function api(path,body){
 }
 function controls(){
  const closed=latestState?.lifecycle.status==='CLOSED', interrupted=latestState?.lifecycle.status==='INTERRUPTED';
- for(const id of ['run','submit'])el(id).disabled=busy||conflict||closed||interrupted;
+ for(const id of ['run','submit'])el(id).disabled=!loading||busy||conflict||closed||interrupted;
  el('start').disabled=busy||context!=='practice'||!latestState?.retrieval_available||!el('ready').checked;
  el('prepare').disabled=busy||!!latestState?.lifecycle.assessment&&latestState.lifecycle.status!=='CLOSED';
- el('editor').readOnly=!!closed;
+ el('editor').readOnly=!loading||!!closed||transitioning;
  for(const id of ['help','review','interrupted'])el(id).disabled=busy||context==='practice'||closed;
  el('declare').disabled=busy||!latestState?.operations.some(o=>o.attempt);
 }
@@ -22,17 +30,21 @@ function show(result){
  el('output').textContent=execution?('Execution: '+execution.status+'\n'+(execution.stdout||'')+(execution.stderr||'')):(result.reason||result.observation?.outcome||'');
 }
 async function refresh(force=false){
+ const request=++readSerial,requestedContext=context,requestedGeneration=generation;
  const state=await api('/api/state'+(context?'?context='+encodeURIComponent(context):''));
+ // A read cannot overwrite edits, a newer save, or a context entered after dispatch.
+ if(request!==readSerial||context!==requestedContext||generation!==requestedGeneration)return;
+ if(loading&&context===state.context&&state.draft.revision<revision)return;
  const changed=context!==state.context;context=state.context;latestState=state;
  if(force||changed||!loading){el('editor').value=state.draft.source;saved=state.draft.source;revision=state.draft.revision;dirty=false;conflict=false;loading=true;}
- else if(state.draft.revision!==revision&&state.draft.source!==saved){conflict=true;say('A newer draft exists. Your editor is preserved; load the saved draft explicitly.');}
+ else if(state.draft.revision!==revision){conflict=true;say('A newer draft exists. Your editor is preserved; load the saved draft explicitly.');}
  el('mode').textContent=context==='practice'?'Practice / preparation':'Assessment';
  el('task').textContent=state.task.prompt;
  el('values').textContent=state.task.initial_values?'Initial values:\n'+JSON.stringify(state.task.initial_values,null,2)+'\nReassignments:\n'+JSON.stringify(state.task.reassignments,null,2):'Assessment task data stays hidden until Start succeeds.';
  el('lifecycle').textContent='State: '+(state.lifecycle.status||state.lifecycle.phase)+(state.lifecycle.closed?' — '+state.lifecycle.closed.outcome:'');
  el('budget').textContent=state.reservation_limit?'Reservations: '+state.reservations_used+' / '+state.reservation_limit:'Practice mode';
  el('clock').textContent='Server time: '+state.server_time;
- el('saved').textContent=conflict?'Draft conflict — editor preserved':dirty?'Unsaved changes':'Saved revision '+revision;
+ indicator();
  if(timer)clearInterval(timer);
  const base=Date.parse(state.server_time),loaded=performance.now(),deadline=state.deadline&&Date.parse(state.deadline);
  function tick(){if(!deadline){el('timer').textContent='Assessment timer not started';return;}const left=Math.max(0,Math.ceil((deadline-base-(performance.now()-loaded))/1000));el('timer').textContent=state.lifecycle.status==='CLOSED'?'Assessment closed':left?'Time remaining: '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0'):'Deadline elapsed — reconcile / exit';}
@@ -44,16 +56,28 @@ async function refresh(force=false){
 }
 async function save(){
  if(!dirty)return;if(conflict)throw Error('Reload or preserve your conflicting draft before continuing.');
- const source=el('editor').value;
- const draft=await api('/api/save',{context,revision,source});revision=draft.revision;saved=source;dirty=el('editor').value!==source;el('saved').textContent=dirty?'Unsaved changes':'Saved revision '+revision;
+ const source=el('editor').value,savingContext=context;++generation;
+ const draft=await api('/api/save',{context:savingContext,revision,source});
+ ++generation;
+ if(context!==savingContext)return;
+ revision=draft.revision;saved=source;dirty=el('editor').value!==source;indicator();
 }
-async function action(fn){if(busy)return;busy=true;controls();try{await fn();}catch(error){say(error.message);}finally{busy=false;controls();}}
-let saveTimer;el('editor').addEventListener('input',()=>{dirty=true;el('saved').textContent='Saving…';clearTimeout(saveTimer);saveTimer=setTimeout(()=>action(async()=>{await save();}),500);});
-el('editor').addEventListener('keydown',event=>{if(event.key==='Tab'){event.preventDefault();el('editor').setRangeText('    ',el('editor').selectionStart,el('editor').selectionEnd,'end');el('editor').dispatchEvent(new Event('input'));}});
+async function action(fn,transition=false){
+ if(busy)return;busy=true;transitioning=transition;controls();let failed=false;
+ try{await fn();}catch(error){failed=true;say(error.message);}finally{
+  busy=false;transitioning=false;indicator();controls();
+  // A timer that fired during an action must not swallow the final edit.
+  if(dirty&&!conflict&&!failed)scheduleSave();
+ }
+}
+el('editor').addEventListener('input',()=>{++generation;dirty=true;indicator();scheduleSave();});
+window.addEventListener('online',()=>action(async()=>{await save();await refresh();}));
+window.addEventListener('beforeunload',event=>{if(dirty){event.preventDefault();event.returnValue='';}});
+el('editor').addEventListener('keydown',event=>{if(el('editor').readOnly)return;if(event.key==='Tab'){event.preventDefault();el('editor').setRangeText('    ',el('editor').selectionStart,el('editor').selectionEnd,'end');el('editor').dispatchEvent(new Event('input'));}});
 el('ready').onchange=controls;
-el('reload').onclick=()=>action(async()=>{if(dirty&&!confirm('Replace your editor with the server-saved draft?'))return;await refresh(true);say('Saved draft loaded.');});
-el('prepare').onclick=()=>action(async()=>{await save();context='practice';await refresh(true);say('Preparation ready. No assessment task has been revealed.');});
-el('start').onclick=()=>action(async()=>{await save();const opened=await api('/api/start',{ready:el('ready').checked});context=opened.context;await refresh(true);say('Assessment opened. The canonical deadline is running.');});
+el('reload').onclick=()=>action(async()=>{if(dirty&&!confirm('Replace your editor with the server-saved draft?'))return;const loaded=await refresh(true);say(loaded?'Saved draft loaded.':'New edits preserved; the saved draft was not loaded.');});
+el('prepare').onclick=()=>action(async()=>{await save();changeContext('practice');await refresh(true);say('Preparation ready. No assessment task has been revealed.');},true);
+el('start').onclick=()=>action(async()=>{await save();const opened=await api('/api/start',{ready:el('ready').checked});changeContext(opened.context);await refresh(true);say('Assessment opened. The canonical deadline is running.');},true);
 for(const kind of ['run','submit'])el(kind).onclick=()=>action(async()=>{await save();const result=await api('/api/'+kind,{context,revision,role:el('role').value});show(result);say(result.status);await refresh();});
 el('declare').onclick=()=>action(async()=>{await api('/api/declare',{context,role:el('role').value,text:el('declaration').value,kind:el('kind').value,timing:el('timing').value});say('Declaration recorded as learner-declared.');await refresh();});
 for(const reason of ['help','review','interrupted'])el(reason).onclick=()=>action(async()=>{const result=await api('/api/exit',{context,reason});show(result);await refresh();say('Exit confirmed: '+result.outcome+'. Teaching remains unavailable in this first slice.');});

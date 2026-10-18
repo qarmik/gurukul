@@ -1,0 +1,6 @@
+Host: Linux-6.18.55-x86_64-with-glibc2.39
+Python: 3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]
+Workspace/execution interpreter for synthetic service checks: /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3
+JavaScript: Node v24.19.0; deterministic node:test/vm DOM/fetch harness, NOT an actual browser.
+Mac/Finder access: UNAVAILABLE. No Mac checkout, synthetic Finder launch, or Mac browser verified.
+Providers: Guru 0; Maharishi 0. No real learner state accessed.

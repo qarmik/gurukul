@@ -1,0 +1,18 @@
+✔ final autosave fired while Run busy is eventually persisted (4.086784ms)
+✔ typing during a slow save queues the final edit without another keystroke (1.19274ms)
+✔ old periodic read arriving after save cannot create false conflict (2.035701ms)
+✔ a response for the previous context cannot switch back or replace text (1.075171ms)
+✔ typing while explicit reload awaits response is preserved and marked unsaved (1.016503ms)
+✔ external newer revision is a conflict; latest editor text is retained (1.071577ms)
+✔ disconnect keeps an unsaved indicator; reconnect persists without more typing (1.071296ms)
+✔ context transition freezes editing including the Tab insertion path (0.793688ms)
+✔ newest read wins when same-context responses arrive out of order (0.906748ms)
+✔ failed context load keeps editor blank and disabled until confirmed reload (1.038236ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 88.700379
