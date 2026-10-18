@@ -10,6 +10,10 @@ description = "Local evidence-backed apprenticeship runtime"
 
 [project.scripts]
 gurukul = "gurukul.cli:main"
+gurukul-workspace = "gurukul.workspace:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+gurukul = ["workspace_assets/*.html", "workspace_assets/*.js", "workspace_assets/*.css"]

@@ -16,7 +16,7 @@ def save_new(path, data):
     path.chmod(0o400)
 
 
-def submit(store, source_path, timeout=5.0, output_limit=65536, _assessment_permit=None):
+def submit(store, source_path, timeout=5.0, output_limit=65536, _assessment_permit=None, _practice_request=None):
     validate_limits(timeout, output_limit)
     session = store.resume()['session']
     source_path = Path(source_path)
@@ -28,7 +28,17 @@ def submit(store, source_path, timeout=5.0, output_limit=65536, _assessment_perm
         raise ValueError('Submission exceeds 256 KiB.')
     from .assessment import submission_permission
     reservation = submission_permission(store, session, digest(source), _assessment_permit)
-    attempt_id = reservation['attempt_id'] if reservation else str(uuid4())
+    if _practice_request is not None:
+        from .workspace_store import operation, child_id
+        parent = operation(store, _practice_request)
+        if (reservation or not parent or parent['session_id'] != session['id']
+                or parent['payload']['context'] != 'practice'
+                or parent['payload']['source_sha256'] != digest(source)
+                or parent['payload']['action'] not in {'run', 'submit'}):
+            raise ValueError('Invalid durable practice execution binding.')
+        attempt_id = child_id(_practice_request, 'practice-attempt')
+    else:
+        attempt_id = reservation['attempt_id'] if reservation else str(uuid4())
     folder = store.state_dir / 'evidence' / attempt_id
     folder.mkdir(parents=True)
     save_new(folder / 'submission.py', source)
