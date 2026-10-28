@@ -9,9 +9,18 @@ function changeContext(next){
  el('editor').value='';latestState=null;indicator();controls();
 }
 
-const say=text=>{el('message').textContent=text;};
+let messageText='',connectionError=null;
+function renderMessage(){el('message').textContent=[connectionError,messageText].filter(Boolean).join(' ');}
+const say=text=>{messageText=text;renderMessage();};
+function reportError(error){if(error.connectionFailure){connectionError=error.message;renderMessage();}else say(error.message);}
+function recovered(){
+ // A state read or an older save acknowledgement cannot confirm unsaved edits.
+ if(connectionError!==null&&!dirty&&!conflict){connectionError=null;renderMessage();}
+}
 async function api(path,body){
- const response=await fetch(path,{method:body===undefined?'GET':'POST',headers:body===undefined?{}:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
+ let response;
+ try{response=await fetch(path,{method:body===undefined?'GET':'POST',headers:body===undefined?{}:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});}
+ catch(error){error.connectionFailure=true;throw error;}
  const data=await response.json();if(!response.ok)throw Error(data.error||'Request not confirmed');return data;
 }
 function controls(){
@@ -52,7 +61,7 @@ async function refresh(force=false){
  el('declarations').textContent=state.declarations?.length?JSON.stringify(state.declarations,null,2):'No bound declaration recorded yet.';
  el('reviews').textContent=state.reviews?.length?'Human review (separate from automatic checks):\n'+JSON.stringify(state.reviews,null,2):'';
  if(state.operations.length)show(state.operations[state.operations.length-1]);
- controls();return state;
+ recovered();controls();return state;
 }
 async function save(){
  if(!dirty)return;if(conflict)throw Error('Reload or preserve your conflicting draft before continuing.');
@@ -60,11 +69,11 @@ async function save(){
  const draft=await api('/api/save',{context:savingContext,revision,source});
  ++generation;
  if(context!==savingContext)return;
- revision=draft.revision;saved=source;dirty=el('editor').value!==source;indicator();
+ revision=draft.revision;saved=source;dirty=el('editor').value!==source;indicator();recovered();
 }
 async function action(fn,transition=false){
  if(busy)return;busy=true;transitioning=transition;controls();let failed=false;
- try{await fn();}catch(error){failed=true;say(error.message);}finally{
+ try{await fn();}catch(error){failed=true;reportError(error);}finally{
   busy=false;transitioning=false;indicator();controls();
   // A timer that fired during an action must not swallow the final edit.
   if(dirty&&!conflict&&!failed)scheduleSave();
@@ -81,4 +90,4 @@ el('start').onclick=()=>action(async()=>{await save();const opened=await api('/a
 for(const kind of ['run','submit'])el(kind).onclick=()=>action(async()=>{await save();const result=await api('/api/'+kind,{context,revision,role:el('role').value});show(result);say(result.status);await refresh();});
 el('declare').onclick=()=>action(async()=>{await api('/api/declare',{context,role:el('role').value,text:el('declaration').value,kind:el('kind').value,timing:el('timing').value});say('Declaration recorded as learner-declared.');await refresh();});
 for(const reason of ['help','review','interrupted'])el(reason).onclick=()=>action(async()=>{const result=await api('/api/exit',{context,reason});show(result);await refresh();say('Exit confirmed: '+result.outcome+'. Teaching remains unavailable in this first slice.');});
-(async()=>{try{const token=location.hash.slice(1);if(token){const response=await fetch('/api/bootstrap',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:'{}'});if(!response.ok)throw Error('Launch authorization failed.');history.replaceState(null,'','/');}await refresh(true);say('Workspace ready. Prior learning is legitimate; declarations describe assistance during this work.');setInterval(()=>{if(!busy&&!dirty)refresh().catch(error=>say(error.message));},2500);}catch(error){say(error.message);}})();
+(async()=>{try{const token=location.hash.slice(1);if(token){const response=await fetch('/api/bootstrap',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:'{}'});if(!response.ok)throw Error('Launch authorization failed.');history.replaceState(null,'','/');}await refresh(true);say('Workspace ready. Prior learning is legitimate; declarations describe assistance during this work.');setInterval(()=>{if(!busy&&!dirty)refresh().catch(reportError);},2500);}catch(error){reportError(error);}})();

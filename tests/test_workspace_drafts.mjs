@@ -20,6 +20,7 @@ async function harness(){
   async fetch(path,options={}){
    const body=options.body&&JSON.parse(options.body);h.calls.push({path,body});
    if(path==='/api/save'&&h.failSave){h.failSave=false;throw Error('Synthetic disconnect');}
+   if(path==='/api/save'&&h.rejectSave){h.rejectSave=false;return {ok:false,json:async()=>({error:'Synthetic permission rejection'})};}
    let result;
    if(path.startsWith('/api/state')){if(h.failRead){h.failRead=false;throw Error('Synthetic state disconnect');}result=structuredClone(h.server);if(h.slowRead){const d=h.slowRead;h.slowRead=null;await d.promise;}}
    else if(path==='/api/save'){
@@ -118,4 +119,79 @@ test('failed context load keeps editor blank and disabled until confirmed reload
  assert.equal(h.node('editor').readOnly,true);assert.equal(h.node('run').disabled,true);
  assert.match(h.node('saved').textContent,/Loading/);
  await h.eval('refresh(true)');assert.equal(h.node('editor').value,'saved preparation');assert.equal(h.node('run').disabled,false);
+});
+
+test('acknowledged reconnect save clears the connection error without refresh',async()=>{
+ const h=await harness();h.failSave=true;h.type('offline edit');await h.timers();
+ assert.match(h.node('message').textContent,/Synthetic disconnect/);
+ await h.online();
+ assert.equal(h.server.draft.source,'offline edit');
+ assert.match(h.node('saved').textContent,/Saved revision 1/);
+ assert.doesNotMatch(h.node('message').textContent,/Synthetic disconnect/);
+});
+
+test('failed reconnect save retains the error and unsaved editor',async()=>{
+ const h=await harness();h.failSave=true;h.type('offline edit');await h.timers();
+ h.failSave=true;await h.online();
+ assert.equal(h.server.draft.source,'');assert.equal(h.node('editor').value,'offline edit');
+ assert.match(h.node('saved').textContent,/Unsaved/);
+ assert.match(h.node('message').textContent,/Synthetic disconnect/);
+});
+
+test('successful state read cannot clear a failed save for dirty text',async()=>{
+ const h=await harness();h.failSave=true;h.type('offline edit');await h.timers();
+ await h.eval('refresh()');
+ assert.equal(h.server.draft.source,'');assert.match(h.node('saved').textContent,/Unsaved/);
+ assert.match(h.node('message').textContent,/Synthetic disconnect/);
+});
+
+test('read recovery clears only the connection error for an already saved draft',async()=>{
+ const h=await harness();h.failRead=true;await h.online();
+ assert.match(h.node('message').textContent,/Synthetic state disconnect/);
+ await h.eval('refresh()');
+ assert.doesNotMatch(h.node('message').textContent,/Synthetic state disconnect/);
+ assert.match(h.node('saved').textContent,/Saved revision 0/);
+});
+
+test('recovery preserves an unrelated unresolved completion warning',async()=>{
+ const h=await harness();
+ h.eval("say('Execution preserved; completion unresolved.')");
+ h.failSave=true;h.type('offline edit');await h.timers();await h.online();
+ assert.match(h.node('message').textContent,/Execution preserved; completion unresolved/);
+ assert.doesNotMatch(h.node('message').textContent,/Synthetic disconnect/);
+});
+
+test('reconnect with a newer server draft retains conflict and local text',async()=>{
+ const h=await harness();h.failSave=true;h.type('local offline edit');await h.timers();
+ h.server.draft={revision:4,source:'other tab'};await h.eval('refresh()');await h.online();
+ assert.equal(h.server.draft.source,'other tab');assert.equal(h.node('editor').value,'local offline edit');
+ assert.match(h.node('saved').textContent,/conflict/i);
+ assert.match(h.node('message').textContent,/conflict/i);
+});
+
+test('save acknowledgement does not clear failure while a newer edit is unsaved',async()=>{
+ const h=await harness();h.failSave=true;h.type('first');await h.timers();
+ const slow=deferred();h.slowSave=slow;const reconnect=h.online();await flush();
+ h.type('newer unsaved edit');slow.resolve();await reconnect;
+ assert.equal(h.server.draft.source,'first');assert.equal(h.node('editor').value,'newer unsaved edit');
+ assert.match(h.node('saved').textContent,/Unsaved/);
+ assert.match(h.node('message').textContent,/Synthetic disconnect/);
+ await h.timers();assert.equal(h.server.draft.source,'newer unsaved edit');
+ assert.doesNotMatch(h.node('message').textContent,/Synthetic disconnect/);
+});
+
+test('successful save does not dismiss a server-side permission error',async()=>{
+ const h=await harness();h.rejectSave=true;h.type('rejected edit');await h.timers();
+ assert.match(h.node('saved').textContent,/Unsaved/);
+ await h.online();assert.equal(h.server.draft.source,'rejected edit');
+ assert.match(h.node('message').textContent,/Synthetic permission rejection/);
+});
+
+test('connection failures and recovery preserve an unrelated error beneath them',async()=>{
+ const h=await harness();h.eval("say('Evidence integrity error; review required.')");
+ h.failSave=true;h.type('offline edit');await h.timers();
+ assert.match(h.node('message').textContent,/Synthetic disconnect/);
+ assert.match(h.node('message').textContent,/Evidence integrity error/);
+ await h.online();assert.match(h.node('message').textContent,/Evidence integrity error/);
+ assert.doesNotMatch(h.node('message').textContent,/Synthetic disconnect/);
 });
