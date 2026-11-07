@@ -29,6 +29,8 @@ async function harness(){
    }else if(path==='/api/run'){
     if(h.slowRun){const d=h.slowRun;h.slowRun=null;await d.promise;}
     result={status:'EXECUTION_RECORDED'};
+   }else if(path==='/api/teach'){
+    result={kind:'sample',reply:'Predict the next printed value.'};
    }else throw Error('Unexpected route '+path);
    return {ok:true,json:async()=>result};
   }};
@@ -194,4 +196,27 @@ test('connection failures and recovery preserve an unrelated error beneath them'
  assert.match(h.node('message').textContent,/Evidence integrity error/);
  await h.online();assert.match(h.node('message').textContent,/Evidence integrity error/);
  assert.doesNotMatch(h.node('message').textContent,/Synthetic disconnect/);
+});
+
+test('Ask Guru labels its reply and leaves a dirty practice draft intact',async()=>{
+ const h=await harness();h.server.teaching='sample';await h.eval('refresh()');
+ h.type('# latest edit');h.node('question').value='What is reassignment?';h.node('question').input();
+ assert.equal(h.node('teach').disabled,false);
+ await h.node('teach').onclick();
+ assert.equal(h.node('guru-reply').textContent,'Sample reply: Predict the next printed value.');
+ assert.deepEqual(h.calls.filter(x=>x.path==='/api/teach').map(x=>x.body),[{question:'What is reassignment?'}]);
+ assert.equal(h.node('editor').value,'# latest edit');
+ assert.equal(h.node('saved').textContent,'Unsaved changes');
+ await h.timers();assert.equal(h.server.draft.source,'# latest edit');
+});
+
+test('assessment context clears practice help and cannot dispatch from the UI',async()=>{
+ const h=await harness();h.server.teaching='sample';await h.eval('refresh()');
+ h.node('question').value='My question';h.node('question').input();await h.node('teach').onclick();
+ h.server=state('synthetic-assessment');await h.eval('refresh()');
+ assert.equal(h.node('question').disabled,true);assert.equal(h.node('teach').disabled,true);
+ assert.equal(h.node('question').value,'');assert.equal(h.node('guru-reply').textContent,'');
+ assert.match(h.node('guru-status').textContent,/unavailable during assessment/);
+ await h.node('teach').onclick();
+ assert.equal(h.calls.filter(x=>x.path==='/api/teach').length,1);
 });

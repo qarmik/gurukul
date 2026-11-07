@@ -1,6 +1,11 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Gurukul practice workspace</title><link rel="stylesheet" href="/style.css"></head><body>
 <header><h1>Gurukul</h1><p>Write, run and submit your own work.</p><strong id="message" role="status">Connecting…</strong></header>
 <main><section aria-label="Task and code"><h2 id="mode">Preparation</h2><p id="task"></p><pre id="values"></pre>
+<h3>Ask Guru</h3>
+<p id="guru-status">Ask Guru unavailable.</p>
+<label for="question">Your question about this exercise</label><input id="question" type="text" maxlength="1000" disabled>
+<button id="teach" type="button" disabled>Ask Guru</button>
+<p id="guru-reply" role="status"></p>
 <div class="actions"><button id="prepare">Practice / prepare editor</button><label><input type="checkbox" id="ready">Editor ready; start the timed assessment</label><button id="start">Start assessment</button></div>
 <label for="editor">Your Python source</label><textarea id="editor" spellcheck="false" autocapitalize="off" autocomplete="off" aria-describedby="saved"></textarea><p id="saved">Not yet loaded</p>
 <div class="actions"><label for="role">Evidence version</label><select id="role"><option value="deliberate_failure">Deliberate-error version</option><option value="repaired">Repaired version</option></select><button id="run">Run</button><button id="submit">Submit for review</button><button id="reload">Load saved draft</button></div>
@@ -10,4 +15,4 @@
 <h2>Assistance declaration</h2><label for="kind">During this work</label><select id="kind"><option value="none_declared">No help during this work (prior learning is legitimate)</option><option value="hint">I used a hint</option><option value="code_or_repair">I used code or repair assistance</option><option value="solution_exposure">I saw a solution</option><option value="unknown">I am unsure</option></select>
 <label for="timing">Reported assistance time</label><select id="timing"><option value="during_work">During work</option><option value="before_work">Before work</option><option value="after_submission">After submission</option><option value="unknown">Unknown</option></select>
 <label for="declaration">Your exact statement</label><textarea id="declaration" maxlength="4096"></textarea><p>Recorded against the selected evidence version after a run. Your statement is learner-declared, not independently verified.</p><button id="declare">Record declaration</button><pre id="declarations"></pre>
-<h2>Help / Exit</h2><button id="help">Exit assessment for help</button><button id="review">Exit for review</button><button id="interrupted">Close interrupted attempt</button><button id="teach" disabled>Ask Guru — unavailable in this first slice</button><p>Tutoring is unavailable throughout an open assessment. An exit must commit first. No provider requests are made by this workspace.</p><pre id="reviews"></pre></aside></main><script src="/app.js"></script></body></html>
+<h2>Help / Exit</h2><button id="help">Exit assessment for help</button><button id="review">Exit for review</button><button id="interrupted">Close interrupted attempt</button><p>Tutoring is unavailable throughout an open assessment. An exit must commit first. No provider requests are made by this workspace.</p><pre id="reviews"></pre></aside></main><script src="/app.js"></script></body></html>

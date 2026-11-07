@@ -10,7 +10,7 @@ import sys
 import tempfile
 import threading
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock,patch
 from uuid import uuid4
 
 from gurukul.store import Store,canonical
@@ -270,6 +270,39 @@ class HTTPTests(unittest.TestCase):
         self.assertEqual(409,self.request('/api/run','POST',{'context':'practice','revision':0,'role':'repaired'})[0])
         self.assertEqual(200,self.request('/api/exit','POST',{'context':aid,'reason':'help'})[0])
         self.assertIn('unavailable',self.request('/api/teach','POST',{})[1].decode())
+    def test_sample_guru_preserves_draft_and_cannot_dispatch_during_assessment(self):
+        from gurukul.workspace import sample_guru
+        self.server.responder=Mock(wraps=sample_guru)
+        question={'question':'What changes after reassignment?'}
+        draft={'context':'practice','revision':0,'source':'# untouched learner draft'}
+        self.assertEqual(200,self.request('/api/save','POST',draft)[0])
+        _,before=self.request()
+        for invalid in ({}, {'question':' '}, {'question':'a'*1001}, {'question':5}):
+            self.assertEqual(409,self.request('/api/teach','POST',invalid)[0])
+        self.assertEqual(403,self.request('/api/teach','POST',question,auth=False)[0])
+        self.assertEqual(403,self.request('/api/teach','POST',question,origin='http://wrong.example')[0])
+        self.server.responder.assert_not_called()
+        before_events=events(self.w.store.db)
+        status,raw=self.request('/api/teach','POST',question)
+        self.assertEqual(200,status)
+        self.assertEqual({'kind':'sample','reply':sample_guru(question['question']),
+                          'grants_assessment_credit':False,'grants_mastery':False,
+                          'advances_curriculum':False},json.loads(raw))
+        self.server.responder.assert_called_once_with(question['question'])
+        _,after=self.request()
+        for key in ('draft','operations','lifecycle'):
+            self.assertEqual(json.loads(before)[key],json.loads(after)[key])
+        self.assertEqual(before_events,events(self.w.store.db))
+        self.assertEqual(200,self.request('/api/start','POST',{'ready':True})[0])
+        _,active=self.request()
+        self.assertEqual('unavailable',json.loads(active)['teaching'])
+        before_events=events(self.w.store.db)
+        status,raw=self.request('/api/teach','POST',question)
+        self.assertEqual(409,status)
+        self.assertIn('Tutoring denied',json.loads(raw)['error'])
+        self.server.responder.assert_called_once()
+        self.assertEqual(before_events,events(self.w.store.db))
+
     def test_assets_packaged_csp_and_no_token_or_provider_secrets(self):
         status,html=self.request('/',auth=False);self.assertEqual(200,status)
         self.assertIn(b'id="editor"',html);self.assertNotIn(self.server.token.encode(),html)
