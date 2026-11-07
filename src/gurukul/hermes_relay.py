@@ -116,7 +116,7 @@ def upstream_request(body, model, prompt, max_tokens):
 
 
 class Relay:
-    def __init__(self, config, key_path, prompt):
+    def __init__(self, config, key_path, prompt, *, system_prompt=None):
         self.config, self.key_path, self.prompt = config, Path(key_path), prompt
         self.token = secrets.token_urlsafe(32)
         self.calls = []
@@ -183,6 +183,18 @@ class Relay:
                                             owner.config['max_output_tokens'])
                     forwarded = upstream_request(body, owner.config['model'], owner.prompt,
                                                  owner.config['max_output_tokens'])
+                    if system_prompt is not None:
+                        # Rebuild the workspace request from parent-approved text and
+                        # fixed controls; worker-added system text/metadata never leaves.
+                        forwarded = {
+                            'model': owner.config['model'],
+                            'messages': [{'role': 'system', 'content': system_prompt},
+                                         {'role': 'user', 'content': owner.prompt}],
+                            'max_completion_tokens': forwarded['max_completion_tokens'],
+                            'reasoning_effort': 'none',
+                            'response_format': {'type': 'json_object'},
+                            'stream': False, 'store': False,
+                        }
                 except (ValueError, OSError):
                     return self.reject('request policy mismatch')
                 call = {'started_at': now(), 'requested_model': owner.config['model'],

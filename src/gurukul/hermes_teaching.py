@@ -82,15 +82,17 @@ class TeachingPipeline:
         lease.check()
         try:
             raw = self.transport(system_prompt=SYSTEM_PROMPT, prompt=prompt)
+        except TeachingTurnError:
+            raise
         except Exception as exc:
             raise TeachingTurnError('Guru could not answer right now. Please try again.') from exc
         lease.check()
         try:
             admission, display = evaluate_output(json.loads(raw), context)
         except (ValueError, TypeError, SyntaxError, RecursionError) as exc:
-            raise TeachingTurnError('Guru’s reply could not be validated. Please try another question.') from exc
-        if admission['conversation_status'] == 'RESPONSE_REJECTED':
-            raise TeachingTurnError('Guru’s reply could not be validated. Please try another question.')
+            raise TeachingTurnError('Guru’s reply could not be validated.') from exc
+        if admission['conversation_status'] != 'CONTINUE':
+            raise TeachingTurnError('Guru’s reply could not be validated.')
         return '\n\n'.join(display[key] for key in
                            ('explanation', 'miniature_example', 'diagnostic_question') if display[key])
 
