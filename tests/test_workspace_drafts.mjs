@@ -30,7 +30,7 @@ async function harness(){
     if(h.slowRun){const d=h.slowRun;h.slowRun=null;await d.promise;}
     result={status:'EXECUTION_RECORDED'};
    }else if(path==='/api/teach'){
-    if(h.failTeach)return {ok:false,json:async()=>({error:'Guru could not answer right now. Please try again.'})};
+    if(h.failTeach)return {ok:false,json:async()=>({error:h.failTeach})};
     result=h.teachingResult||{kind:'sample',reply:'Predict the next printed value.'};
    }else throw Error('Unexpected route '+path);
    return {ok:true,json:async()=>result};
@@ -231,10 +231,18 @@ test('Ask Guru shows a validated reply as teaching, not a sample',async()=>{
 
 test('Ask Guru failure reports in place and leaves draft autosave working',async()=>{
  const h=await harness();h.server.teaching='pipeline';await h.eval('refresh()');
- h.failTeach=true;h.type('# unsaved during failure');
+ h.failTeach='Guru could not answer right now. Please try again.';h.type('# unsaved during failure');
  h.node('question').value='What changed?';h.node('question').input();await h.node('teach').onclick();
  assert.match(h.node('guru-reply').textContent,/could not answer.*try again/);
  assert.equal(h.node('editor').value,'# unsaved during failure');
  assert.equal(h.node('saved').textContent,'Unsaved changes');
  await h.timers();assert.equal(h.server.draft.source,'# unsaved during failure');
+});
+
+test('Ask Guru replaces a previous answer with only the validation error',async()=>{
+ const h=await harness();h.server.teaching='pipeline';await h.eval('refresh()');
+ h.teachingResult={kind:'validated',reply:'The name now refers to the new value.'};
+ h.node('question').value='What changed?';h.node('question').input();await h.node('teach').onclick();
+ h.failTeach='Guru’s reply could not be validated.';await h.node('teach').onclick();
+ assert.equal(h.node('guru-reply').textContent,h.failTeach);
 });

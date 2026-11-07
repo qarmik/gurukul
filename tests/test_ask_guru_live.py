@@ -33,6 +33,7 @@ class AskGuruRelayTests(unittest.TestCase):
                                                     runtime/'base/bin/python', [source]),
                                           checked_config(workspace_tests.ROOT), self.key, self.ledger)
         self.fixture.server.teaching_pipeline.transport = self.transport
+        self.fixture.server.teaching_pipeline.reply_observer = self.transport.record_reply
         self.request = self.fixture.request
         self.ask = lambda: self.request('/api/teach', 'POST', self.fixture.question)
         self.original_run = subprocess.run
@@ -107,6 +108,7 @@ class AskGuruRelayTests(unittest.TestCase):
         self.assertEqual(502, self.ask()[0])
         self.upstream.assert_called_once()
         receipt = self.transport.receipt
+        self.assertEqual('reply_admitted', receipt['reply_reason_code'])
         self.assertEqual(1, receipt['relay_reservations'])
         self.assertEqual(1, receipt['provider_request_limit'])
         self.assertTrue(receipt['ledger_unchanged_by_worker'])
@@ -119,6 +121,7 @@ class AskGuruRelayTests(unittest.TestCase):
         self.assertFalse(self.worker.called)
         self.upstream.assert_not_called()
         self.assertFalse(self.transport.used)
+        self.assertEqual('reply_not_evaluated', self.transport.receipt['reply_reason_code'])
 
     def test_timeout_consumes_budget_without_changing_progress(self):
         before = self.draft_and_progress()
@@ -130,6 +133,19 @@ class AskGuruRelayTests(unittest.TestCase):
         self.assertEqual(502, self.ask()[0])
         self.upstream.assert_called_once()
         self.assertEqual(1, self.transport.receipt['relay_reservations'])
+        self.assertEqual('reply_not_evaluated', self.transport.receipt['reply_reason_code'])
+        self.assertEqual(before, self.fixture.progress_snapshot())
+
+    def test_invalid_json_is_hidden_and_reported_without_raw_text(self):
+        before = self.draft_and_progress()
+        self.raw = 'private malformed reply'
+        status, raw = self.ask()
+        self.assertEqual(502, status)
+        self.assertEqual({'error': 'Guru’s reply could not be validated.'}, json.loads(raw))
+        self.assertEqual('invalid_reply_json', self.transport.receipt['reply_reason_code'])
+        self.assertNotIn(self.raw, json.dumps(self.transport.receipt))
+        self.assertNotIn(self.raw, self.output.getvalue())
+        self.upstream.assert_called_once()
         self.assertEqual(before, self.fixture.progress_snapshot())
 
     def test_rejected_teaching_reply_leaves_progress_and_draft_unchanged(self):
@@ -142,14 +158,29 @@ class AskGuruRelayTests(unittest.TestCase):
         self.assertEqual(502, self.ask()[0])
         self.upstream.assert_called_once()
         self.assertEqual(1, self.transport.receipt['relay_reservations'])
+        self.assertEqual('reply_validation_failed', self.transport.receipt['reply_reason_code'])
+        self.assertNotIn('private reply', json.dumps(self.transport.receipt))
         self.assertEqual(before, self.fixture.progress_snapshot())
 
     def test_semantically_unadmitted_reply_does_not_claim_message_was_saved(self):
+        before = self.draft_and_progress()
         self.fixture.proposal['pedagogy']['intents']['question_span'] = {'ref': 'unknown'}
         self.raw = json.dumps(self.fixture.proposal)
         status, raw = self.ask()
         self.assertEqual(502, status)
         self.assertNotIn(b'saved', raw)
+        self.assertNotIn(self.fixture.explanation.encode(), raw)
+        self.assertEqual('reply_withheld_after_validation', self.transport.receipt['reply_reason_code'])
+        self.assertEqual(before, self.fixture.progress_snapshot())
+        self.upstream.assert_called_once()
+
+    def test_same_name_two_assignment_example_hits_existing_disclosure_limit(self):
+        self.assertIn('at most one assigned name', SYSTEM_PROMPT)
+        self.raw = json.dumps(self.fixture.proposal | {'miniature_example': 'sample = 2\nsample = 3'})
+        status, raw = self.ask()
+        self.assertEqual(502, status)
+        self.assertNotIn(b'sample = 2', raw)
+        self.assertEqual('reply_validation_failed', self.transport.receipt['reply_reason_code'])
         self.upstream.assert_called_once()
 
 

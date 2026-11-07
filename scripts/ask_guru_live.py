@@ -69,7 +69,11 @@ class OneTurnTransport:
         self.used = False
         self.receipt = {'model': config['model'], 'output_token_limit': config['max_output_tokens'],
                         'provider_request_limit': 1, 'relay_reservations': 0,
-                        'transport_status': 'NOT_DISPATCHED'}
+                        'transport_status': 'NOT_DISPATCHED',
+                        'reply_reason_code': 'reply_not_evaluated'}
+
+    def record_reply(self, code):
+        self.receipt['reply_reason_code'] = code
 
     def __call__(self, *, system_prompt, prompt):
         with self.lock:
@@ -145,7 +149,8 @@ def main():
             finally:
                 store.close()
             transport = OneTurnTransport(runtime, installation, config, key, ledger)
-            with Server(root, session['id'], teaching_pipeline=TeachingPipeline(source, transport)) as server:
+            pipeline = TeachingPipeline(source, transport, reply_observer=transport.record_reply)
+            with Server(root, session['id'], teaching_pipeline=pipeline) as server:
                 server.daemon_threads = False  # Finish the bounded request before removing its fixture.
                 print('Disposable workspace: one live Ask Guru request available. Press Control+C after the reply.', flush=True)
                 if not webbrowser.open(server.origin + '/#' + server.token):

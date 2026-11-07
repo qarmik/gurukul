@@ -66,9 +66,14 @@ class TeachingTurnError(Exception):
 class TeachingPipeline:
     """Single D01 turn. The host supplies the source and transport explicitly."""
 
-    def __init__(self, source, transport):
+    def __init__(self, source, transport, *, reply_observer=None):
         self.source = Path(source)
         self.transport = transport
+        self.reply_observer = reply_observer
+
+    def _report_reply(self, code):
+        if self.reply_observer is not None:
+            self.reply_observer(code)
 
     def reply(self, root, lease, question):
         lease.check()
@@ -88,13 +93,22 @@ class TeachingPipeline:
             raise TeachingTurnError('Guru could not answer right now. Please try again.') from exc
         lease.check()
         try:
-            admission, display = evaluate_output(json.loads(raw), context)
+            proposal = json.loads(raw)
+        except (ValueError, TypeError, RecursionError) as exc:
+            self._report_reply('invalid_reply_json')
+            raise TeachingTurnError('Guru’s reply could not be validated.') from exc
+        try:
+            admission, display = evaluate_output(proposal, context)
         except (ValueError, TypeError, SyntaxError, RecursionError) as exc:
+            self._report_reply('reply_validation_failed')
             raise TeachingTurnError('Guru’s reply could not be validated.') from exc
         if admission['conversation_status'] != 'CONTINUE':
+            self._report_reply('reply_withheld_after_validation')
             raise TeachingTurnError('Guru’s reply could not be validated.')
-        return '\n\n'.join(display[key] for key in
-                           ('explanation', 'miniature_example', 'diagnostic_question') if display[key])
+        reply = '\n\n'.join(display[key] for key in
+                            ('explanation', 'miniature_example', 'diagnostic_question') if display[key])
+        self._report_reply('reply_admitted')
+        return reply
 
 def teaching_response(text, context=None):
     result = json.loads(text)
