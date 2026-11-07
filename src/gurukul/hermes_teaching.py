@@ -9,7 +9,19 @@ from uuid import uuid4
 from gurukul.store import canonical, now
 
 from gurukul.pedagogy import SYSTEM_PROMPT, build_prompt, orientation, turn_context, validate_response
+from gurukul.response_contract import ResponseContractError
 from gurukul.teaching_output import evaluate_output
+
+
+_RECEIPT_RULE_CODES = {
+    ('guru.response.schema', 'key_mismatch'): 'reply_schema_mismatch',
+    ('guru.pedagogy.schema', 'key_mismatch'): 'reply_schema_mismatch',
+    ('guru.layout.schema', 'key_mismatch'): 'reply_schema_mismatch',
+    ('guru.parent_authority', 'invalid_parent_context'): 'reply_authority_failure',
+    ('guru.parent_authority', 'conflicting_current_location'): 'reply_authority_failure',
+    ('guru.parent_authority', 'conflicting_curriculum_version'): 'reply_authority_failure',
+    ('guru.example', 'assignment_limit'): 'example_assignment_limit',
+}
 
 
 class PlainText(HTMLParser):
@@ -71,9 +83,14 @@ class TeachingPipeline:
         self.transport = transport
         self.reply_observer = reply_observer
 
-    def _report_reply(self, code):
+    def _report_reply(self, code, *, validation_error=None):
         if self.reply_observer is not None:
-            self.reply_observer(code)
+            rule_code = None
+            if isinstance(validation_error, ResponseContractError):
+                diagnostics = validation_error.diagnostics
+                rule_code = _RECEIPT_RULE_CODES.get(
+                    (diagnostics['validation_stage'], diagnostics['failure_code']))
+            self.reply_observer(code, validation_rule_code=rule_code)
 
     def reply(self, root, lease, question):
         lease.check()
@@ -100,7 +117,7 @@ class TeachingPipeline:
         try:
             admission, display = evaluate_output(proposal, context)
         except (ValueError, TypeError, SyntaxError, RecursionError) as exc:
-            self._report_reply('reply_validation_failed')
+            self._report_reply('reply_validation_failed', validation_error=exc)
             raise TeachingTurnError('Guru’s reply could not be validated.') from exc
         if admission['conversation_status'] != 'CONTINUE':
             self._report_reply('reply_withheld_after_validation')

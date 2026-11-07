@@ -109,6 +109,7 @@ class AskGuruRelayTests(unittest.TestCase):
         self.upstream.assert_called_once()
         receipt = self.transport.receipt
         self.assertEqual('reply_admitted', receipt['reply_reason_code'])
+        self.assertNotIn('validation_rule_code', receipt)
         self.assertEqual(1, receipt['relay_reservations'])
         self.assertEqual(1, receipt['provider_request_limit'])
         self.assertTrue(receipt['ledger_unchanged_by_worker'])
@@ -150,7 +151,7 @@ class AskGuruRelayTests(unittest.TestCase):
 
     def test_rejected_teaching_reply_leaves_progress_and_draft_unchanged(self):
         before = self.draft_and_progress()
-        self.raw = json.dumps(self.fixture.proposal | {'unexpected': 'private reply'})
+        self.raw = json.dumps(self.fixture.proposal | {'provider_private_key_name': 'private reply'})
         status, raw = self.ask()
         self.assertEqual(502, status)
         self.assertIn(b'could not be validated', raw)
@@ -159,8 +160,31 @@ class AskGuruRelayTests(unittest.TestCase):
         self.upstream.assert_called_once()
         self.assertEqual(1, self.transport.receipt['relay_reservations'])
         self.assertEqual('reply_validation_failed', self.transport.receipt['reply_reason_code'])
-        self.assertNotIn('private reply', json.dumps(self.transport.receipt))
+        self.assertEqual('reply_schema_mismatch', self.transport.receipt['validation_rule_code'])
+        for forbidden in ('private reply', 'provider_private_key_name', 'actual_keys', 'expected_keys',
+                          'extra_keys', 'validation_stage', 'failure_code',
+                          'Pedagogical response schema mismatch'):
+            self.assertNotIn(forbidden, json.dumps(self.transport.receipt))
         self.assertEqual(before, self.fixture.progress_snapshot())
+
+    def test_parent_authority_failure_has_distinct_receipt_code(self):
+        self.fixture.proposal['pedagogy']['current_location'] = 'provider-private-location'
+        self.raw = json.dumps(self.fixture.proposal)
+        status, raw = self.ask()
+        self.assertEqual(502, status)
+        self.assertEqual({'error': 'Guru’s reply could not be validated.'}, json.loads(raw))
+        self.assertEqual('reply_validation_failed', self.transport.receipt['reply_reason_code'])
+        self.assertEqual('reply_authority_failure', self.transport.receipt['validation_rule_code'])
+        self.assertNotIn('provider-private-location', json.dumps(self.transport.receipt))
+
+    def test_unlisted_contract_diagnostic_stays_unclassified(self):
+        self.fixture.proposal['pedagogy']['current_purpose'] = 'provider-private-purpose'
+        self.raw = json.dumps(self.fixture.proposal)
+        status, raw = self.ask()
+        self.assertEqual(502, status)
+        self.assertEqual({'error': 'Guru’s reply could not be validated.'}, json.loads(raw))
+        self.assertEqual('reply_validation_failed', self.transport.receipt['reply_reason_code'])
+        self.assertNotIn('validation_rule_code', self.transport.receipt)
 
     def test_semantically_unadmitted_reply_does_not_claim_message_was_saved(self):
         before = self.draft_and_progress()
@@ -182,6 +206,8 @@ class AskGuruRelayTests(unittest.TestCase):
         self.assertEqual(502, status)
         self.assertNotIn(b'sample = 2', raw)
         self.assertEqual('reply_validation_failed', self.transport.receipt['reply_reason_code'])
+        self.assertEqual('example_assignment_limit', self.transport.receipt['validation_rule_code'])
+        self.assertNotIn('sample = 2', json.dumps(self.transport.receipt))
         self.upstream.assert_called_once()
 
 

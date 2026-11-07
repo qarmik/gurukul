@@ -72,8 +72,12 @@ class OneTurnTransport:
                         'transport_status': 'NOT_DISPATCHED',
                         'reply_reason_code': 'reply_not_evaluated'}
 
-    def record_reply(self, code):
+    def record_reply(self, code, *, validation_rule_code=None):
         self.receipt['reply_reason_code'] = code
+        if validation_rule_code is None:
+            self.receipt.pop('validation_rule_code', None)
+        else:
+            self.receipt['validation_rule_code'] = validation_rule_code
 
     def __call__(self, *, system_prompt, prompt):
         with self.lock:
