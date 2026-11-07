@@ -225,7 +225,9 @@ test('assessment context clears practice help and cannot dispatch from the UI',a
 test('Ask Guru shows a validated reply as teaching, not a sample',async()=>{
  const h=await harness();h.server.teaching='pipeline';await h.eval('refresh()');
  h.teachingResult={kind:'validated',reply:'The name now refers to the new value.'};
- h.node('question').value='What changed?';h.node('question').input();await h.node('teach').onclick();
+ const question='What changes after reassignment?';
+ h.node('question').value=question;h.node('question').input();await h.node('teach').onclick();
+ assert.deepEqual(h.calls.filter(x=>x.path==='/api/teach').map(x=>x.body),[{question}]);
  assert.equal(h.node('guru-reply').textContent,'Guru: The name now refers to the new value.');
 });
 

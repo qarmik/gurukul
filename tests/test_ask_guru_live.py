@@ -175,7 +175,8 @@ class AskGuruRelayTests(unittest.TestCase):
         self.upstream.assert_called_once()
 
     def test_same_name_two_assignment_example_hits_existing_disclosure_limit(self):
-        self.assertIn('at most one assigned name', SYSTEM_PROMPT)
+        self.assertIn('at most one assignment statement, with a single simple name as its target.', SYSTEM_PROMPT)
+        self.assertIn('Explain reassignment in prose if a code example would need two assignments.', SYSTEM_PROMPT)
         self.raw = json.dumps(self.fixture.proposal | {'miniature_example': 'sample = 2\nsample = 3'})
         status, raw = self.ask()
         self.assertEqual(502, status)
