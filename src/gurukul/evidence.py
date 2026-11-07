@@ -56,9 +56,18 @@ def prepare_assistance(store, attempt_id, declaration, failed_attempt_id=None):
     if not isinstance(declaration, dict):
         raise ValueError('Assistance declaration must be an object.')
     required = {'request_id', 'kind', 'steps', 'timing', 'origin'}
-    optional = {'support_event_id', 'support_payload_sha256'}
+    optional = {'support_event_id', 'support_payload_sha256', 'declaration_text', 'declaration_source', 'statement_at'}
     if not required <= declaration.keys() or declaration.keys() - required - optional:
         raise ValueError('Assistance declaration schema mismatch.')
+    if 'declaration_text' in declaration:
+        if (not isinstance(declaration['declaration_text'], str) or not 1 <= len(declaration['declaration_text']) <= 4096
+                or declaration.get('declaration_source') not in {'workspace', 'learner_supplied_transcript'}):
+            raise ValueError('Exact declaration text and source are required together.')
+    elif 'declaration_source' in declaration or 'statement_at' in declaration:
+        raise ValueError('Declaration provenance requires exact text.')
+    if declaration.get('statement_at') is not None:
+        from .assessment import instant
+        instant(declaration['statement_at'])  # Reported statement time, never the event recording time.
     request = declaration['request_id']
     try:
         if not isinstance(request, str) or str(UUID(request)) != request:
@@ -94,7 +103,7 @@ def prepare_assistance(store, attempt_id, declaration, failed_attempt_id=None):
                 payload.get('status') != 'PASS' or payload.get('grants_mastery') is not False or
                 payload.get('provenance', {}).get('exercise_sha256') != bound['exercise_sha256']):
             raise ValueError('Supporting parent event content/provenance mismatch.')
-    elif optional & declaration.keys():
+    elif {'support_event_id', 'support_payload_sha256'} & declaration.keys():
         raise ValueError('Unverified support references cannot be labelled learner declarations.')
     fact = dict(declaration, steps=sorted(steps))
     return {'schema_version': 1, 'bindings': bound, 'fact': fact,
