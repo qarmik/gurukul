@@ -1,0 +1,46 @@
+{
+  "evidence": "SYNTHETIC_HTTP_WORKFLOW_NOT_BROWSER_OR_LEARNER_RETRIEVAL",
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "preparation_task_hidden": true,
+  "practice": [
+    {
+      "role": "deliberate_failure",
+      "status": "EXECUTION_RECORDED",
+      "source_sha256": "f5b6391fd34947adf4a357533f55606819a0f5a60f4728ccbd5fd8397b3ef474",
+      "result_canonical_sha256": "f03fea0c892281aa3e2128dad18077de4925e33b07f4b238a1f8864db7e3bd20",
+      "checks": null
+    },
+    {
+      "role": "repaired",
+      "status": "PRACTICE_CHECK_RECORDED",
+      "source_sha256": "80848408c0e759565059fd568985e42486cb5539562b73a277bbe0614b70651c",
+      "result_canonical_sha256": "8fffc06fd899e67be31bca6c9c287b07aeeae0d10a1e84835857f1a95b90947f",
+      "checks": "CHECKS_PASS"
+    }
+  ],
+  "assessment": [
+    {
+      "role": "deliberate_failure",
+      "status": "EXECUTION_RECORDED",
+      "source_sha256": "e5308cc9ff3a6a94279144ebeb0dc7350b321f42842e5925dfe57520864a127d",
+      "result_canonical_sha256": "5fdbc6ab863fbb3e906181eccdc4fba0e49f365e5ced798c63e6dca24f91e7f2",
+      "outcome": null
+    },
+    {
+      "role": "repaired",
+      "status": "COMPLETION_CONFIRMED",
+      "source_sha256": "479fbc0d160b6ae128cbea31eb9565e46829b42a678f50a217b233cb3e4c7cd4",
+      "result_canonical_sha256": "c2f0a5df961e8912c824f3e82884271dbce6e02c25021f0929b85e527367da7f",
+      "outcome": "COMPLETED_FOR_REVIEW"
+    }
+  ],
+  "final_status": "CLOSED",
+  "final_outcome": "COMPLETED_FOR_REVIEW",
+  "reservations_used": 2,
+  "deadline_unchanged": true,
+  "grants_mastery": false,
+  "grants_verified_independence": false,
+  "advances_curriculum": false,
+  "provider_calls": 0
+}
