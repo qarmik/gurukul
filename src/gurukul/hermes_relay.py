@@ -23,13 +23,28 @@ RESPONSE_LIMIT = 256000
 # These remain HTTP 403, never forwarded and never presented as model metadata.
 STARTUP_PROBE_PATHS = frozenset({'/api/v1/models', '/api/tags', '/v1/props', '/props', '/version'})
 
+REJECTION_CODES = {
+    'route denied': 'route_denied',
+    'authentication failed': 'authentication_failed',
+    'prior policy violation prevents turn admission': 'prior_policy_violation',
+    'route or turn not authorized': 'route_or_turn_not_authorized',
+    'one-request budget exhausted': 'request_budget_exhausted',
+    'request policy mismatch': 'request_policy_mismatch',
+    'CONNECT denied': 'connect_denied',
+}
+
 
 def provider_error(data, secret):
     """Retain a bounded diagnostic, never the raw error body or credential echo."""
     try:
-        error = json.loads(data).get('error')
-    except (ValueError, AttributeError):
+        body = json.loads(data)
+    except ValueError:
         return {'type': 'unparseable_provider_error'}
+    return _provider_error_fields(body, secret)
+
+
+def _provider_error_fields(body, secret):
+    error = body.get('error') if isinstance(body, dict) else None
     if not isinstance(error, dict):
         return {'type': 'unparseable_provider_error'}
     result = {}
@@ -143,7 +158,8 @@ class Relay:
                 self.wfile.write(data)
 
             def reject(self, reason):
-                owner.rejections.append({'reason': reason, 'method': self.command,
+                owner.rejections.append({'reason': reason, 'reason_code': REJECTION_CODES[reason],
+                                         'method': self.command,
                                          'path': self.path.split('?', 1)[0][:160]})
                 self.reply(403, {'error': {'message': 'Gurukul relay: ' + reason,
                                          'type': 'permission_error', 'code': 'relay_denied'}})
@@ -210,10 +226,12 @@ class Relay:
                 call['upstream_request_sha256'] = hashlib.sha256(json.dumps(forwarded).encode()).hexdigest()
                 call['adapter_transform'] = 'max_tokens_to_max_completion_tokens' if body.get('max_tokens') is not None else 'none'
                 owner.calls.append(call)  # Reserve before network I/O, even if it fails.
+                call['upstream_stage'] = 'before_forward'
                 try:
-                    status, response, request_id = owner.forward(forwarded)
-                    call.update(http_status=status, provider_request_id=request_id,
-                                resolved_model=response.get('model'), usage=response.get('usage'),
+                    status, response = owner.forward(forwarded, call=call)
+                    if status == 200:
+                        call['upstream_stage'] = 'provider_response_validation'
+                    call.update(resolved_model=response.get('model'), usage=response.get('usage'),
                                 outcome='completed' if status == 200 else 'provider_rejected')
                     usage = response.get('usage') or {}
                     call.update(input_tokens=usage.get('prompt_tokens'), output_tokens=usage.get('completion_tokens'),
@@ -229,6 +247,7 @@ class Relay:
                         if len(choices) != 1 or choices[0].get('message', {}).get('tool_calls') or choices[0].get('message', {}).get('function_call'):
                             raise ValueError('Provider returned tools or unexpected choices')
                         owner.response = response
+                        call['upstream_stage'] = 'completed'
                         self.reply(200, response)
                     else:
                         call['provider_error'] = response.get('error')
@@ -248,22 +267,38 @@ class Relay:
         self.port = self.server.server_address[1]
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
 
-    def forward(self, body):
+    def forward(self, body, *, call):
         # Transport forwarding only: the genuine Hermes client constructed this request.
         # HTTPSConnection does not consult ambient proxy env or follow redirects.
+        call['upstream_stage'] = 'local_credential'
         secret = private_key(self.key_path)
+        call['upstream_stage'] = 'connection_or_send'
         connection = http.client.HTTPSConnection('api.openai.com', timeout=60,
                                                   context=ssl.create_default_context())
         try:
             connection.request('POST', '/v1/chat/completions', json.dumps(body).encode(),
                                {'Authorization': 'Bearer ' + secret, 'Content-Type': 'application/json'})
+            call['upstream_stage'] = 'response_headers'
             reply = connection.getresponse()
+            call.update(http_status=reply.status, provider_http_error=400 <= reply.status <= 599)
+            request_id = reply.getheader('x-request-id')
+            if (isinstance(request_id, str) and re.fullmatch(r'req_[A-Za-z0-9_-]{1,128}', request_id)
+                    and secret not in request_id):
+                call['provider_request_id'] = request_id
+            call['upstream_stage'] = 'response_body_read'
             data = reply.read(RESPONSE_LIMIT + 1)
             if len(data) > RESPONSE_LIMIT:
                 raise ValueError('Provider response too large')
+            call['upstream_stage'] = 'response_body_decode'
             if reply.status != 200:
-                return reply.status, {'error': provider_error(data, secret)}, reply.getheader('x-request-id')
-            return reply.status, json.loads(data), reply.getheader('x-request-id')
+                try:
+                    body = json.loads(data)
+                except ValueError:
+                    return reply.status, {'error': {'type': 'unparseable_provider_error'}}
+                call['upstream_stage'] = ('provider_http_error' if call['provider_http_error']
+                                          else 'unexpected_http_status')
+                return reply.status, {'error': _provider_error_fields(body, secret)}
+            return reply.status, json.loads(data)
         finally:
             connection.close()
 

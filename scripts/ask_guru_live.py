@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -37,6 +38,25 @@ def checked_config(project):
             config['automatic_retry'] is not False or config['automatic_escalation'] is not False):
         raise ValueError('Live Ask Guru requires the pinned OpenAI route and 1024-token limit, with retry and escalation disabled.')
     return config
+
+
+def upstream_receipt(call, model):
+    entry = {k: call.get(k) for k in ('http_status', 'provider_request_id', 'provider_http_error',
+                                     'upstream_stage', 'outcome', 'upstream_request_parameters')}
+    resolved = call.get('resolved_model')
+    entry['resolved_model'] = (resolved if isinstance(resolved, str) and
+                               re.fullmatch(re.escape(model) + r'(?:-[0-9]{4}-[0-9]{2}-[0-9]{2})?', resolved)
+                               else None)
+    return entry
+
+
+def relay_receipt(relay, model):
+    calls = relay.calls if relay is not None else []
+    rejections = relay.rejections if relay is not None else []
+    return {'relay_reservations': len(calls),
+            'upstream': [upstream_receipt(call, model) for call in calls],
+            'relay_rejections': len(rejections),
+            'relay_rejection_codes': [item['reason_code'] for item in rejections]}
 
 
 class OneTurnTransport:
@@ -74,13 +94,8 @@ class OneTurnTransport:
             self.receipt['failure_type'] = type(exc).__name__
             raise TeachingTurnError('Guru could not answer. This trial will not retry.') from exc
         finally:
-            calls = relay.calls if relay is not None else []
+            self.receipt.update(relay_receipt(relay, self.config['model']))
             self.receipt.update(
-                relay_reservations=len(calls),
-                upstream=[{k: call.get(k) for k in ('http_status', 'provider_request_id',
-                                                    'resolved_model', 'outcome', 'upstream_request_parameters')}
-                          for call in calls],
-                relay_rejections=len(relay.rejections) if relay is not None else 0,
                 worker_status=report.get('worker', {}).get('status'),
                 ledger_unchanged_by_worker=report.get('ledger_unchanged_by_worker'))
             print('ASK_GURU_LIVE_RECEIPT=' + json.dumps(self.receipt), flush=True)
