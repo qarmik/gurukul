@@ -1,4 +1,4 @@
-"""Local learner workspace with optional sample-only Ask Guru."""
+"""Local learner workspace with guarded Ask Guru."""
 import argparse
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -18,6 +18,8 @@ import webbrowser
 from .store import Store,canonical,now
 from .assessment import Controller,events,catalogue,candidate,sha,instant
 from .learning_authority import learning_lock,canonical_teaching
+from .hermes_teaching import TeachingTurnError
+from .terminal_text import normalize_input
 from .submissions import submit,inspect,save_new,digest
 from . import workspace_store as ws
 from .checks import evaluate,snapshot,exercise_for_attempt
@@ -40,10 +42,10 @@ def operation_lock(directory):
 
 
 class Workspace:
-    def __init__(self,root,session_id,reviewer_id=None,*,responder=None):
+    def __init__(self,root,session_id,reviewer_id=None,*,responder=None,teaching_pipeline=None):
         self.root=Path(root).resolve();self.path=self.root/'var/gurukul.sqlite3'
         if not self.path.is_file() or self.path.is_symlink():raise ValueError('Existing canonical learner ledger required.')
-        self.store=Store(self.path);self.sid=session_id;self.reviewer_id=reviewer_id;self.responder=responder
+        self.store=Store(self.path);self.sid=session_id;self.reviewer_id=reviewer_id;self.responder=responder;self.teaching_pipeline=teaching_pipeline
         try:
             if self.store.resume()['session']['id']!=session_id:raise ValueError('Canonical active session differs.')
             ws.migrate(self.store)
@@ -85,7 +87,7 @@ class Workspace:
                 'server_time':now(),'deadline':a['deadline'] if a else None,
                 'reservations_used':len(state.get('runs',[])),'reservation_limit':a['max_runs'] if a else None,
                 'operations':operations,'retrieval_available':bool(available),
-                'teaching':'sample' if self.responder is not None and context=='practice' else 'unavailable',
+                'teaching':self.teaching_mode if context=='practice' else 'unavailable',
                 'interpreter':sys.version,
                 'execution_interpreter':sys.executable,'grants_mastery':False,'advances_curriculum':False}
 
@@ -241,21 +243,32 @@ class Workspace:
             ws.event(self.store,'evidence.review_recorded',request_id,self.sid,p,'workspace.review:'+request_id)
         return p
 
+    @property
+    def teaching_mode(self):
+        if self.teaching_pipeline is not None:return 'pipeline'
+        return 'sample' if self.responder is not None else 'unavailable'
+
     def teach(self,question=None):
-        # Hold the same lease used by assessment opening through responder dispatch.
-        with canonical_teaching(self.path,self.sid):
-            if self.responder is None:
-                raise ValueError('Ask Guru sample unavailable for this launch.')
-            if not isinstance(question,str) or not 1<=len(question.strip())<=MAX_QUESTION_LENGTH:
+        # Keep canonical authority through context construction, dispatch and validation.
+        with canonical_teaching(self.path,self.sid) as lease:
+            mode=self.teaching_mode
+            if mode=='unavailable':
+                raise ValueError('Ask Guru is unavailable for this launch.')
+            if not isinstance(question,str) or len(question)>MAX_QUESTION_LENGTH:
                 raise ValueError('Enter a question of 1–1000 characters.')
-            return {'kind':'sample','reply':self.responder(question.strip()),
+            question=normalize_input(question)[0].strip()
+            if not question:
+                raise ValueError('Enter a question of 1–1000 characters.')
+            reply=(self.teaching_pipeline.reply(self.root,lease,question) if mode=='pipeline'
+                   else self.responder(question))
+            return {'kind':'validated' if mode=='pipeline' else 'sample','reply':reply,
                     'grants_assessment_credit':False,'grants_mastery':False,'advances_curriculum':False}
 
 
 class Server(ThreadingHTTPServer):
     daemon_threads=True
-    def __init__(self,root,session_id,reviewer_id=None,reviewer_token=None,*,responder=None):
-        self.root=Path(root).resolve();self.session_id=session_id;self.responder=responder
+    def __init__(self,root,session_id,reviewer_id=None,reviewer_token=None,*,responder=None,teaching_pipeline=None):
+        self.root=Path(root).resolve();self.session_id=session_id;self.responder=responder;self.teaching_pipeline=teaching_pipeline
         self.token=secrets.token_urlsafe(32);self.reviewer_id=reviewer_id;self.reviewer_token=reviewer_token
         super().__init__(('127.0.0.1',0),Handler)
         self.origin='http://127.0.0.1:'+str(self.server_address[1])
@@ -295,7 +308,8 @@ class Handler(BaseHTTPRequestHandler):
             if url.path!='/api/state':self.reply(404,{'error':'Unknown route.'});return
             query=parse_qs(url.query)
             if set(query)-{'context'}:raise ValueError('Unsupported query.')
-            service=Workspace(self.server.root,self.server.session_id,responder=self.server.responder)
+            service=Workspace(self.server.root,self.server.session_id,responder=self.server.responder,
+                              teaching_pipeline=self.server.teaching_pipeline)
             self.reply(200,service.state(query.get('context',[None])[0]))
         except PermissionError as exc:self.reply(403,{'error':str(exc)})
         except (ValueError,OSError,sqlite3.Error,cookies.CookieError) as exc:self.reply(409,{'error':str(exc)})
@@ -317,7 +331,8 @@ class Handler(BaseHTTPRequestHandler):
             if path=='/api/bootstrap':
                 if body:raise ValueError('Empty bootstrap body required.')
                 self.reply(200,{'authorized':True},extra={'Set-Cookie':'gurukul_launch='+self.server.token+'; HttpOnly; SameSite=Strict; Path=/api/'});return
-            service=Workspace(self.server.root,self.server.session_id,self.server.reviewer_id,responder=self.server.responder)
+            service=Workspace(self.server.root,self.server.session_id,self.server.reviewer_id,responder=self.server.responder,
+                              teaching_pipeline=self.server.teaching_pipeline)
             if path=='/api/save':result=service.save(**body)
             elif path=='/api/start':
                 if body!={'ready':True}:raise ValueError('Explicit ready-to-start confirmation required.')
@@ -331,6 +346,7 @@ class Handler(BaseHTTPRequestHandler):
                 result=service.teach(**body)
             else:self.reply(404,{'error':'Unknown route.'});return
             self.reply(200,result)
+        except TeachingTurnError as exc:self.reply(502,{'error':str(exc)})
         except PermissionError as exc:self.reply(403,{'error':str(exc)})
         except (ValueError,OSError,TypeError,KeyError,sqlite3.Error,cookies.CookieError) as exc:self.reply(409,{'error':str(exc)})
         finally:

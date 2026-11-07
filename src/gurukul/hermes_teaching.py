@@ -8,7 +8,8 @@ from uuid import uuid4
 
 from gurukul.store import canonical, now
 
-from gurukul.pedagogy import SYSTEM_PROMPT, validate_response
+from gurukul.pedagogy import SYSTEM_PROMPT, build_prompt, orientation, turn_context, validate_response
+from gurukul.teaching_output import evaluate_output
 
 
 class PlainText(HTMLParser):
@@ -50,6 +51,48 @@ def source_input(path, manifest, config, exercise):
               'APPROVED LOCAL MATERIAL (' + config['source_id'] + '):\n' + excerpt)
     return prompt, excerpt, provenance
 
+
+
+def prepare_turn(root, exercise, excerpt, message, previous=None, history=()):
+    curriculum, proof = orientation(root, exercise)
+    context = turn_context(curriculum, previous, message, history)
+    return context, build_prompt(context, excerpt), proof
+
+
+class TeachingTurnError(Exception):
+    """A bounded learner-facing failure, with no raw provider details."""
+
+
+class TeachingPipeline:
+    """Single D01 turn. The host supplies the source and transport explicitly."""
+
+    def __init__(self, source, transport):
+        self.source = Path(source)
+        self.transport = transport
+
+    def reply(self, root, lease, question):
+        lease.check()
+        exercise = json.loads((root / 'content/c0_b01/d01.json').read_text())
+        if hashlib.sha256(canonical(exercise).encode()).hexdigest() != lease.exercise_sha256:
+            raise ValueError('Teaching exercise differs from canonical learner authority.')
+        manifest = json.loads((root / 'content/sources.json').read_text())
+        config = json.loads((root / 'config/hermes-live.json').read_text())
+        _, excerpt, _ = source_input(self.source, manifest, config, exercise)
+        context, prompt, _ = prepare_turn(root, exercise, excerpt, question)
+        lease.check()
+        try:
+            raw = self.transport(system_prompt=SYSTEM_PROMPT, prompt=prompt)
+        except Exception as exc:
+            raise TeachingTurnError('Guru could not answer right now. Please try again.') from exc
+        lease.check()
+        try:
+            admission, display = evaluate_output(json.loads(raw), context)
+        except (ValueError, TypeError, SyntaxError, RecursionError) as exc:
+            raise TeachingTurnError('Guru’s reply could not be validated. Please try another question.') from exc
+        if admission['conversation_status'] == 'RESPONSE_REJECTED':
+            raise TeachingTurnError('Guru’s reply could not be validated. Please try another question.')
+        return '\n\n'.join(display[key] for key in
+                           ('explanation', 'miniature_example', 'diagnostic_question') if display[key])
 
 def teaching_response(text, context=None):
     result = json.loads(text)

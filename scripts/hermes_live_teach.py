@@ -20,9 +20,9 @@ from gurukul.hermes_relay import Relay, private_key
 from gurukul.intent_admission import runtime_notice
 from gurukul.teaching_output import evaluate_output
 from gurukul.terminal_text import normalize_input
-from gurukul.pedagogy import orientation, turn_context, build_prompt, validate_response
+from gurukul.pedagogy import build_prompt, validate_response
 from gurukul.hermes_continuation import load_previous, continuation_input
-from gurukul.hermes_teaching import SYSTEM_PROMPT, record_result, source_input, teaching_response
+from gurukul.hermes_teaching import SYSTEM_PROMPT, prepare_turn, record_result, source_input, teaching_response
 from gurukul.store import Store, canonical, now
 from gurukul.anthropic_supervisor import configured_provider
 from gurukul.maharishi import carried_state, snapshot, supervise, control_context, apply_control
@@ -224,11 +224,9 @@ def _run_authorized(args):
         excerpt, provenance = previous['excerpt'], previous['provenance']
     else:
         prompt, excerpt, provenance = source_input(local_source, manifest, config, exercise)
-    curriculum, curriculum_proof = orientation(PROJECT, exercise)
-    context = turn_context(curriculum, previous,
-                           continuation['learner_answer'] if continuation else '',
-                           previous.get('history', []) if previous else [])
-    prompt = build_prompt(context, excerpt)
+    context, prompt, curriculum_proof = prepare_turn(
+        PROJECT, exercise, excerpt, continuation['learner_answer'] if continuation else '',
+        previous, previous.get('history', []) if previous else ())
     state = (PROJECT / 'var').resolve()
     state.mkdir(exist_ok=True)
     subprocess.run(['git', '-C', str(PROJECT), 'check-ignore', '-q', str(state / 'hermes-live/proof.json')], check=True)

@@ -303,6 +303,95 @@ class HTTPTests(unittest.TestCase):
         self.server.responder.assert_called_once()
         self.assertEqual(before_events,events(self.w.store.db))
 
+    def enable_teaching_pipeline(self):
+        from gurukul.hermes_teaching import TeachingPipeline
+        from gurukul.intent_admission import SPANS
+        from gurukul.pedagogy import SYSTEM_PROMPT
+
+        # Pin a synthetic approved source in the disposable root only.
+        source=self.root/'approved-fixture.html'
+        source.write_text('<h2>Concepts to own</h2><div class="card">A name can be reassigned.</div>'
+                          '<section class="day">C0-B01-D01: Reassignment practice.</section>')
+        config=json.loads((ROOT/'config/hermes-live.json').read_text())
+        config['source_sha256']=hashlib.sha256(source.read_bytes()).hexdigest()
+        manifest_path=self.root/'content/sources.json'
+        manifest=json.loads(manifest_path.read_text())
+        manifest['sources'][config['source_id']]['sha256']=config['source_sha256']
+        manifest_path.write_text(json.dumps(manifest))
+        (self.root/'config').mkdir()
+        (self.root/'config/hermes-live.json').write_text(json.dumps(config))
+        self.question={'question':'What changes after reassignment?'}
+        self.explanation='The name now refers to the newly assigned value.'
+        self.proposal={'explanation':self.explanation,'miniature_example':'','diagnostic_question':'',
+                       'pedagogy':{'message_kind':'QUESTION','concept':'reassignment','judgment':'not_applicable',
+                                   'strategy':'explanation','next_activity':'pause',
+                                   'evidence_need':'No answer was submitted.',
+                                   'knowledge_classes':['approved_source'],'claim_basis':'Approved source.',
+                                   'source_specific':False,'future_topic_deferred':False,
+                                   'grants_mastery':False,'curriculum_observation':'',
+                                   'intents':dict.fromkeys(SPANS,'') | {'primary':'QUESTION','secondary':[],
+                                                                       'question_span':{'ref':'s0'}},
+                                   'intent_responses':{'question':self.explanation,'clarification':'','confusion':''}}}
+
+        def transport(*,system_prompt,prompt):
+            self.assertEqual(SYSTEM_PROMPT,system_prompt)
+            self.assertIn(self.question['question'],prompt)
+            self.assertIn('A name can be reassigned.',prompt)
+            # The existing lock must still be held when a transport is entered.
+            self.assertEqual(409,self.request('/api/start','POST',{'ready':True})[0])
+            self.assertNotIn('# private draft',prompt)
+            return json.dumps(self.proposal)
+
+        self.transport_stub=Mock(side_effect=transport)
+        self.server.teaching_pipeline=TeachingPipeline(source,self.transport_stub)
+
+    def progress_snapshot(self):
+        state=json.loads(self.request()[1])
+        return {k:state[k] for k in ('draft','lifecycle','operations','reservations_used')},events(self.w.store.db)
+
+    def test_pipeline_practice_validates_reply_without_changing_draft_or_progress(self):
+        self.enable_teaching_pipeline()
+        self.assertEqual(200,self.request('/api/save','POST',
+                         {'context':'practice','revision':0,'source':'# private draft'})[0])
+        self.assertEqual('pipeline',json.loads(self.request()[1])['teaching'])
+        before=self.progress_snapshot()
+        status,raw=self.request('/api/teach','POST',self.question)
+        self.assertEqual(200,status,raw)
+        self.assertEqual({'kind':'validated','reply':self.explanation,
+                          'grants_assessment_credit':False,'grants_mastery':False,
+                          'advances_curriculum':False},json.loads(raw))
+        self.transport_stub.assert_called_once()
+        self.assertEqual(before,self.progress_snapshot())
+
+    def test_pipeline_assessment_denies_direct_teach_before_transport(self):
+        self.enable_teaching_pipeline()
+        self.assertEqual(200,self.request('/api/start','POST',{'ready':True})[0])
+        before=self.progress_snapshot()
+        self.assertEqual('unavailable',json.loads(self.request()[1])['teaching'])
+        status,raw=self.request('/api/teach','POST',self.question)
+        self.assertEqual(409,status,raw)
+        self.assertIn('Tutoring denied',json.loads(raw)['error'])
+        self.transport_stub.assert_not_called()
+        self.assertEqual(before,self.progress_snapshot())
+
+    def test_pipeline_transport_and_contract_failures_preserve_draft_and_progress(self):
+        self.enable_teaching_pipeline()
+        self.assertEqual(200,self.request('/api/save','POST',
+                         {'context':'practice','revision':0,'source':'# private draft'})[0])
+        before=self.progress_snapshot()
+        for failure,message in [(TimeoutError('private transport details'),'could not answer'),
+                                (None,'could not be validated')]:
+            with self.subTest(failure=failure):
+                self.transport_stub.reset_mock()
+                self.transport_stub.side_effect=failure
+                self.transport_stub.return_value=json.dumps(self.proposal | {'extra':'private provider data'})
+                status,raw=self.request('/api/teach','POST',self.question)
+                self.assertEqual(502,status,raw)
+                self.assertIn(message,json.loads(raw)['error'])
+                self.assertNotIn(b'private',raw)
+                self.transport_stub.assert_called_once()
+                self.assertEqual(before,self.progress_snapshot())
+
     def test_assets_packaged_csp_and_no_token_or_provider_secrets(self):
         status,html=self.request('/',auth=False);self.assertEqual(200,status)
         self.assertIn(b'id="editor"',html);self.assertNotIn(self.server.token.encode(),html)

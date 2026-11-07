@@ -26,7 +26,7 @@ async function api(path,body){
 function clearGuru(){
  el('question').value='';el('guru-reply').textContent='';
 }
-function guruAvailable(){return context==='practice'&&latestState?.teaching==='sample';}
+function guruAvailable(){return context==='practice'&&['sample','pipeline'].includes(latestState?.teaching);}
 function controls(){
  const closed=latestState?.lifecycle.status==='CLOSED', interrupted=latestState?.lifecycle.status==='INTERRUPTED';
  for(const id of ['run','submit'])el(id).disabled=!loading||busy||conflict||closed||interrupted;
@@ -38,8 +38,8 @@ function controls(){
  const available=guruAvailable();
  el('question').disabled=!available||busy;
  el('teach').disabled=!available||busy||!el('question').value.trim();
- el('guru-status').textContent=available?'Sample mode: no live tutor or assessment credit.':
-  context&&context!=='practice'?'Ask Guru unavailable during assessment.':'Ask Guru sample unavailable for this launch.';
+ el('guru-status').textContent=available?(latestState.teaching==='sample'?'Sample mode: no live tutor or assessment credit.':'Practice teaching does not award assessment credit.'):
+  context&&context!=='practice'?'Ask Guru unavailable during assessment.':'Ask Guru unavailable for this launch.';
 }
 function show(result){
  el('outcome').textContent=result.status||result.outcome||'Recorded';
@@ -99,8 +99,12 @@ el('teach').onclick=()=>{
  if(!guruAvailable()||el('teach').disabled)return;
  return action(async()=>{
   el('guru-reply').textContent='';
-  const result=await api('/api/teach',{question:el('question').value});
-  if(guruAvailable())el('guru-reply').textContent='Sample reply: '+result.reply;
+  try{
+   const result=await api('/api/teach',{question:el('question').value});
+   if(guruAvailable())el('guru-reply').textContent=(result.kind==='sample'?'Sample reply: ':'Guru: ')+result.reply;
+  }catch(error){
+   el('guru-reply').textContent=error.connectionFailure?'Could not reach Guru. Please try again.':error.message;
+  }
  });
 };
 el('reload').onclick=()=>action(async()=>{if(dirty&&!confirm('Replace your editor with the server-saved draft?'))return;const loaded=await refresh(true);say(loaded?'Saved draft loaded.':'New edits preserved; the saved draft was not loaded.');});
