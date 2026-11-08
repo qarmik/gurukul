@@ -25,6 +25,12 @@ async function api(path,body){
 }
 function clearGuru(){
  el('question').value='';el('guru-reply').textContent='';
+ showGuruHistory([]);
+}
+function showGuruHistory(exchanges){
+ const history=el('guru-history');
+ const transcript=exchanges.map(({question,reply})=>'You: '+question+'\nGuru: '+reply).join('\n\n');
+ if(history.textContent!==transcript)history.textContent=transcript;
 }
 function guruAvailable(){return context==='practice'&&['sample','pipeline'].includes(latestState?.teaching);}
 function controls(){
@@ -55,6 +61,7 @@ async function refresh(force=false){
  if(loading&&context===state.context&&state.draft.revision<revision)return;
  const changed=context!==state.context;context=state.context;latestState=state;
  if(changed)clearGuru();
+ showGuruHistory(context==='practice'?(state.teaching_exchanges||[]):[]);
  if(force||changed||!loading){el('editor').value=state.draft.source;saved=state.draft.source;revision=state.draft.revision;dirty=false;conflict=false;loading=true;}
  else if(state.draft.revision!==revision){conflict=true;say('A newer draft exists. Your editor is preserved; load the saved draft explicitly.');}
  el('mode').textContent=context==='practice'?'Practice / preparation':'Assessment';
@@ -101,7 +108,13 @@ el('teach').onclick=()=>{
   el('guru-reply').textContent='';
   try{
    const result=await api('/api/teach',{question:el('question').value});
-   if(guruAvailable())el('guru-reply').textContent=(result.kind==='sample'?'Sample reply: ':'Guru: ')+result.reply;
+   if(guruAvailable()){
+    if(result.kind==='sample')el('guru-reply').textContent='Sample reply: '+result.reply;
+    else{
+     ++readSerial; // An older state read must not erase the newly admitted exchange.
+     showGuruHistory(result.teaching_exchanges);
+    }
+   }
   }catch(error){
    el('guru-reply').textContent=error.connectionFailure?'Could not reach Guru. Please try again.':error.message;
   }
