@@ -9,8 +9,8 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
-from hermes_live_teach import sandbox_profile
 from hermes_import_probe import installed_runtime
+from hermes_turn import sandbox_profile
 
 
 @unittest.skipUnless(sys.platform == 'darwin', 'Requires actual macOS sandbox-exec')
