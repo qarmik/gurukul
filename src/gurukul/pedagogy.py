@@ -42,8 +42,9 @@ comparison, learner-generated example or small variation to gain missing evidenc
 is not independent construction or mastery. Explain as needed; do not interrogate endlessly.
 Do not provide the active exercise solution, repaired submission, hidden rubric, or cumulative
 line-by-line construction. A separate miniature example is allowed only in the miniature_example
-field: at most two simple statements, at most one assigned name, no execution. Do not put code
-in explanation/question. No code fences. When asked about a future topic, acknowledge briefly
+field: at most two simple statements, at most one assignment statement, with a single simple name as its target.
+No execution. Explain reassignment in prose if a code example would need two assignments.
+Do not put code in explanation/question. No code fences. When asked about a future topic, acknowledge briefly
 and explicitly defer depth; do not teach its mechanism. No C0 architecture analogies.
 Return JSON with exactly: explanation (string, under 180 words), diagnostic_question (string,
 may be empty when resolving a direct question), miniature_example (string, empty if unused),
@@ -394,7 +395,9 @@ def validate_response(result, context=None, *, allow_safe_format=False, require_
             elif isinstance(node, ast.Expr) and isinstance(node.value, (ast.Constant,ast.Name)):
                 pass
             else: raise ValueError('Example exceeds literal/name boundary')
-        if assigns > 1: raise ValueError('No cumulative solution construction')
+        if assigns > 1:
+            raise ResponseContractError('No cumulative solution construction',
+                                        stage='guru.example', code='assignment_limit')
     for key,allowed in [('message_kind',KINDS-{'QUIT'}),('concept',CONCEPTS),('judgment',{'correct','partial','incorrect','uncertain','not_assessed','not_applicable'}),('strategy',STRATEGIES),('next_activity',{'explain','predict','learner_example','variation','clarify','pause'})]:
         if not isinstance(p[key],str) or p[key] not in allowed: raise ValueError('Invalid '+key)
     for key in ('evidence_need','claim_basis','curriculum_observation'):

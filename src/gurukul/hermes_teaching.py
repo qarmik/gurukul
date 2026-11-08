@@ -8,7 +8,20 @@ from uuid import uuid4
 
 from gurukul.store import canonical, now
 
-from gurukul.pedagogy import SYSTEM_PROMPT, validate_response
+from gurukul.pedagogy import SYSTEM_PROMPT, build_prompt, orientation, turn_context, validate_response
+from gurukul.response_contract import ResponseContractError
+from gurukul.teaching_output import evaluate_output
+
+
+_RECEIPT_RULE_CODES = {
+    ('guru.response.schema', 'key_mismatch'): 'reply_schema_mismatch',
+    ('guru.pedagogy.schema', 'key_mismatch'): 'reply_schema_mismatch',
+    ('guru.layout.schema', 'key_mismatch'): 'reply_schema_mismatch',
+    ('guru.parent_authority', 'invalid_parent_context'): 'reply_authority_failure',
+    ('guru.parent_authority', 'conflicting_current_location'): 'reply_authority_failure',
+    ('guru.parent_authority', 'conflicting_curriculum_version'): 'reply_authority_failure',
+    ('guru.example', 'assignment_limit'): 'example_assignment_limit',
+}
 
 
 class PlainText(HTMLParser):
@@ -50,6 +63,69 @@ def source_input(path, manifest, config, exercise):
               'APPROVED LOCAL MATERIAL (' + config['source_id'] + '):\n' + excerpt)
     return prompt, excerpt, provenance
 
+
+
+def prepare_turn(root, exercise, excerpt, message, previous=None, history=()):
+    curriculum, proof = orientation(root, exercise)
+    context = turn_context(curriculum, previous, message, history)
+    return context, build_prompt(context, excerpt), proof
+
+
+class TeachingTurnError(Exception):
+    """A bounded learner-facing failure, with no raw provider details."""
+
+
+class TeachingPipeline:
+    """Single D01 turn. The host supplies the source and transport explicitly."""
+
+    def __init__(self, source, transport, *, reply_observer=None):
+        self.source = Path(source)
+        self.transport = transport
+        self.reply_observer = reply_observer
+
+    def _report_reply(self, code, *, validation_error=None):
+        if self.reply_observer is not None:
+            rule_code = None
+            if isinstance(validation_error, ResponseContractError):
+                diagnostics = validation_error.diagnostics
+                rule_code = _RECEIPT_RULE_CODES.get(
+                    (diagnostics['validation_stage'], diagnostics['failure_code']))
+            self.reply_observer(code, validation_rule_code=rule_code)
+
+    def reply(self, root, lease, question):
+        lease.check()
+        exercise = json.loads((root / 'content/c0_b01/d01.json').read_text())
+        if hashlib.sha256(canonical(exercise).encode()).hexdigest() != lease.exercise_sha256:
+            raise ValueError('Teaching exercise differs from canonical learner authority.')
+        manifest = json.loads((root / 'content/sources.json').read_text())
+        config = json.loads((root / 'config/hermes-live.json').read_text())
+        _, excerpt, _ = source_input(self.source, manifest, config, exercise)
+        context, prompt, _ = prepare_turn(root, exercise, excerpt, question)
+        lease.check()
+        try:
+            raw = self.transport(system_prompt=SYSTEM_PROMPT, prompt=prompt)
+        except TeachingTurnError:
+            raise
+        except Exception as exc:
+            raise TeachingTurnError('Guru could not answer right now. Please try again.') from exc
+        lease.check()
+        try:
+            proposal = json.loads(raw)
+        except (ValueError, TypeError, RecursionError) as exc:
+            self._report_reply('invalid_reply_json')
+            raise TeachingTurnError('Guru’s reply could not be validated.') from exc
+        try:
+            admission, display = evaluate_output(proposal, context)
+        except (ValueError, TypeError, SyntaxError, RecursionError) as exc:
+            self._report_reply('reply_validation_failed', validation_error=exc)
+            raise TeachingTurnError('Guru’s reply could not be validated.') from exc
+        if admission['conversation_status'] != 'CONTINUE':
+            self._report_reply('reply_withheld_after_validation')
+            raise TeachingTurnError('Guru’s reply could not be validated.')
+        reply = '\n\n'.join(display[key] for key in
+                            ('explanation', 'miniature_example', 'diagnostic_question') if display[key])
+        self._report_reply('reply_admitted')
+        return reply
 
 def teaching_response(text, context=None):
     result = json.loads(text)

@@ -29,6 +29,9 @@ async function harness(){
    }else if(path==='/api/run'){
     if(h.slowRun){const d=h.slowRun;h.slowRun=null;await d.promise;}
     result={status:'EXECUTION_RECORDED'};
+   }else if(path==='/api/teach'){
+    if(h.failTeach)return {ok:false,json:async()=>({error:h.failTeach})};
+    result=h.teachingResult||{kind:'sample',reply:'Predict the next printed value.'};
    }else throw Error('Unexpected route '+path);
    return {ok:true,json:async()=>result};
   }};
@@ -194,4 +197,54 @@ test('connection failures and recovery preserve an unrelated error beneath them'
  assert.match(h.node('message').textContent,/Evidence integrity error/);
  await h.online();assert.match(h.node('message').textContent,/Evidence integrity error/);
  assert.doesNotMatch(h.node('message').textContent,/Synthetic disconnect/);
+});
+
+test('Ask Guru labels its reply and leaves a dirty practice draft intact',async()=>{
+ const h=await harness();h.server.teaching='sample';await h.eval('refresh()');
+ h.type('# latest edit');h.node('question').value='What is reassignment?';h.node('question').input();
+ assert.equal(h.node('teach').disabled,false);
+ await h.node('teach').onclick();
+ assert.equal(h.node('guru-reply').textContent,'Sample reply: Predict the next printed value.');
+ assert.deepEqual(h.calls.filter(x=>x.path==='/api/teach').map(x=>x.body),[{question:'What is reassignment?'}]);
+ assert.equal(h.node('editor').value,'# latest edit');
+ assert.equal(h.node('saved').textContent,'Unsaved changes');
+ await h.timers();assert.equal(h.server.draft.source,'# latest edit');
+});
+
+test('assessment context clears practice help and cannot dispatch from the UI',async()=>{
+ const h=await harness();h.server.teaching='sample';await h.eval('refresh()');
+ h.node('question').value='My question';h.node('question').input();await h.node('teach').onclick();
+ h.server=state('synthetic-assessment');await h.eval('refresh()');
+ assert.equal(h.node('question').disabled,true);assert.equal(h.node('teach').disabled,true);
+ assert.equal(h.node('question').value,'');assert.equal(h.node('guru-reply').textContent,'');
+ assert.match(h.node('guru-status').textContent,/unavailable during assessment/);
+ await h.node('teach').onclick();
+ assert.equal(h.calls.filter(x=>x.path==='/api/teach').length,1);
+});
+
+test('Ask Guru shows a validated reply as teaching, not a sample',async()=>{
+ const h=await harness();h.server.teaching='pipeline';await h.eval('refresh()');
+ h.teachingResult={kind:'validated',reply:'The name now refers to the new value.'};
+ const question='What changes after reassignment?';
+ h.node('question').value=question;h.node('question').input();await h.node('teach').onclick();
+ assert.deepEqual(h.calls.filter(x=>x.path==='/api/teach').map(x=>x.body),[{question}]);
+ assert.equal(h.node('guru-reply').textContent,'Guru: The name now refers to the new value.');
+});
+
+test('Ask Guru failure reports in place and leaves draft autosave working',async()=>{
+ const h=await harness();h.server.teaching='pipeline';await h.eval('refresh()');
+ h.failTeach='Guru could not answer right now. Please try again.';h.type('# unsaved during failure');
+ h.node('question').value='What changed?';h.node('question').input();await h.node('teach').onclick();
+ assert.match(h.node('guru-reply').textContent,/could not answer.*try again/);
+ assert.equal(h.node('editor').value,'# unsaved during failure');
+ assert.equal(h.node('saved').textContent,'Unsaved changes');
+ await h.timers();assert.equal(h.server.draft.source,'# unsaved during failure');
+});
+
+test('Ask Guru replaces a previous answer with only the validation error',async()=>{
+ const h=await harness();h.server.teaching='pipeline';await h.eval('refresh()');
+ h.teachingResult={kind:'validated',reply:'The name now refers to the new value.'};
+ h.node('question').value='What changed?';h.node('question').input();await h.node('teach').onclick();
+ h.failTeach='Guru’s reply could not be validated.';await h.node('teach').onclick();
+ assert.equal(h.node('guru-reply').textContent,h.failTeach);
 });
