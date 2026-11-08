@@ -42,10 +42,11 @@ def operation_lock(directory):
 
 
 class Workspace:
-    def __init__(self,root,session_id,reviewer_id=None,*,responder=None,teaching_pipeline=None):
+    def __init__(self,root,session_id,reviewer_id=None,*,responder=None,teaching_pipeline=None,practice_exchanges=None):
         self.root=Path(root).resolve();self.path=self.root/'var/gurukul.sqlite3'
         if not self.path.is_file() or self.path.is_symlink():raise ValueError('Existing canonical learner ledger required.')
         self.store=Store(self.path);self.sid=session_id;self.reviewer_id=reviewer_id;self.responder=responder;self.teaching_pipeline=teaching_pipeline
+        self.practice_exchanges = [] if practice_exchanges is None else practice_exchanges
         try:
             if self.store.resume()['session']['id']!=session_id:raise ValueError('Canonical active session differs.')
             ws.migrate(self.store)
@@ -88,6 +89,7 @@ class Workspace:
                 'reservations_used':len(state.get('runs',[])),'reservation_limit':a['max_runs'] if a else None,
                 'operations':operations,'retrieval_available':bool(available),
                 'teaching':self.teaching_mode if context=='practice' else 'unavailable',
+                'teaching_exchanges':self.teaching_exchanges() if context=='practice' else [],
                 'interpreter':sys.version,
                 'execution_interpreter':sys.executable,'grants_mastery':False,'advances_curriculum':False}
 
@@ -248,6 +250,9 @@ class Workspace:
         if self.teaching_pipeline is not None:return 'pipeline'
         return 'sample' if self.responder is not None else 'unavailable'
 
+    def teaching_exchanges(self):
+        return [{key: turn[key] for key in ('question', 'reply')} for turn in self.practice_exchanges]
+
     def teach(self,question=None):
         # Keep canonical authority through context construction, dispatch and validation.
         with canonical_teaching(self.path,self.sid) as lease:
@@ -259,16 +264,25 @@ class Workspace:
             question=normalize_input(question)[0].strip()
             if not question:
                 raise ValueError('Enter a question of 1–1000 characters.')
-            reply=(self.teaching_pipeline.reply(self.root,lease,question) if mode=='pipeline'
-                   else self.responder(question))
+            transcript = {}
+            if mode=='pipeline':
+                prior = self.practice_exchanges[-1] if self.practice_exchanges else None
+                turn = self.teaching_pipeline.reply(self.root,lease,question,prior=prior)
+                self.practice_exchanges[:] = [*self.practice_exchanges[-1:], turn]
+                transcript = {'teaching_exchanges':self.teaching_exchanges()}
+                reply = turn['reply']
+            else:
+                reply = self.responder(question)
             return {'kind':'validated' if mode=='pipeline' else 'sample','reply':reply,
-                    'grants_assessment_credit':False,'grants_mastery':False,'advances_curriculum':False}
+                    'grants_assessment_credit':False,'grants_mastery':False,'advances_curriculum':False,**transcript}
 
 
 class Server(ThreadingHTTPServer):
     daemon_threads=True
     def __init__(self,root,session_id,reviewer_id=None,reviewer_token=None,*,responder=None,teaching_pipeline=None):
         self.root=Path(root).resolve();self.session_id=session_id;self.responder=responder;self.teaching_pipeline=teaching_pipeline
+        # This server is bound to one canonical session; never persist practice dialogue in the ledger.
+        self.practice_exchanges = []
         self.token=secrets.token_urlsafe(32);self.reviewer_id=reviewer_id;self.reviewer_token=reviewer_token
         super().__init__(('127.0.0.1',0),Handler)
         self.origin='http://127.0.0.1:'+str(self.server_address[1])
@@ -309,7 +323,7 @@ class Handler(BaseHTTPRequestHandler):
             query=parse_qs(url.query)
             if set(query)-{'context'}:raise ValueError('Unsupported query.')
             service=Workspace(self.server.root,self.server.session_id,responder=self.server.responder,
-                              teaching_pipeline=self.server.teaching_pipeline)
+                              teaching_pipeline=self.server.teaching_pipeline,practice_exchanges=self.server.practice_exchanges)
             self.reply(200,service.state(query.get('context',[None])[0]))
         except PermissionError as exc:self.reply(403,{'error':str(exc)})
         except (ValueError,OSError,sqlite3.Error,cookies.CookieError) as exc:self.reply(409,{'error':str(exc)})
@@ -332,7 +346,7 @@ class Handler(BaseHTTPRequestHandler):
                 if body:raise ValueError('Empty bootstrap body required.')
                 self.reply(200,{'authorized':True},extra={'Set-Cookie':'gurukul_launch='+self.server.token+'; HttpOnly; SameSite=Strict; Path=/api/'});return
             service=Workspace(self.server.root,self.server.session_id,self.server.reviewer_id,responder=self.server.responder,
-                              teaching_pipeline=self.server.teaching_pipeline)
+                              teaching_pipeline=self.server.teaching_pipeline,practice_exchanges=self.server.practice_exchanges)
             if path=='/api/save':result=service.save(**body)
             elif path=='/api/start':
                 if body!={'ready':True}:raise ValueError('Explicit ready-to-start confirmation required.')

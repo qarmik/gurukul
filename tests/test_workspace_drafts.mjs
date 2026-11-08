@@ -224,11 +224,12 @@ test('assessment context clears practice help and cannot dispatch from the UI',a
 
 test('Ask Guru shows a validated reply as teaching, not a sample',async()=>{
  const h=await harness();h.server.teaching='pipeline';await h.eval('refresh()');
- h.teachingResult={kind:'validated',reply:'The name now refers to the new value.'};
  const question='What changes after reassignment?';
+ const reply='The name now refers to the new value.';
+ h.teachingResult={kind:'validated',teaching_exchanges:[{question,reply}]};
  h.node('question').value=question;h.node('question').input();await h.node('teach').onclick();
  assert.deepEqual(h.calls.filter(x=>x.path==='/api/teach').map(x=>x.body),[{question}]);
- assert.equal(h.node('guru-reply').textContent,'Guru: The name now refers to the new value.');
+ assert.equal(h.node('guru-history').textContent,'You: '+question+'\nGuru: '+reply);
 });
 
 test('Ask Guru failure reports in place and leaves draft autosave working',async()=>{
@@ -241,10 +242,13 @@ test('Ask Guru failure reports in place and leaves draft autosave working',async
  await h.timers();assert.equal(h.server.draft.source,'# unsaved during failure');
 });
 
-test('Ask Guru replaces a previous answer with only the validation error',async()=>{
+test('Ask Guru keeps accepted exchanges when a follow-up fails validation',async()=>{
  const h=await harness();h.server.teaching='pipeline';await h.eval('refresh()');
- h.teachingResult={kind:'validated',reply:'The name now refers to the new value.'};
+ h.teachingResult={kind:'validated',teaching_exchanges:[{question:'What changed?',reply:'The name now refers to the new value.'}]};
  h.node('question').value='What changed?';h.node('question').input();await h.node('teach').onclick();
+ const accepted=h.node('guru-history').textContent;
+ h.node('question').value='Rejected follow-up?';
  h.failTeach='Guru’s reply could not be validated.';await h.node('teach').onclick();
  assert.equal(h.node('guru-reply').textContent,h.failTeach);
+ assert.equal(h.node('guru-history').textContent,accepted);
 });

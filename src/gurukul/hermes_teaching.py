@@ -76,7 +76,7 @@ class TeachingTurnError(Exception):
 
 
 class TeachingPipeline:
-    """Single D01 turn. The host supplies the source and transport explicitly."""
+    """Validate one D01 turn with optional, parent-admitted practice context."""
 
     def __init__(self, source, transport, *, reply_observer=None):
         self.source = Path(source)
@@ -92,7 +92,7 @@ class TeachingPipeline:
                     (diagnostics['validation_stage'], diagnostics['failure_code']))
             self.reply_observer(code, validation_rule_code=rule_code)
 
-    def reply(self, root, lease, question):
+    def reply(self, root, lease, question, *, prior=None):
         lease.check()
         exercise = json.loads((root / 'content/c0_b01/d01.json').read_text())
         if hashlib.sha256(canonical(exercise).encode()).hexdigest() != lease.exercise_sha256:
@@ -100,7 +100,18 @@ class TeachingPipeline:
         manifest = json.loads((root / 'content/sources.json').read_text())
         config = json.loads((root / 'config/hermes-live.json').read_text())
         _, excerpt, _ = source_input(self.source, manifest, config, exercise)
-        context, prompt, _ = prepare_turn(root, exercise, excerpt, question)
+        previous = history = None
+        if prior is not None:
+            teaching = prior['teaching']
+            previous = {'teaching': teaching}
+            history = ({
+                'learner_message': prior['question'],
+                'explanation': teaching['explanation'],
+                'question': teaching['diagnostic_question'],
+                'miniature_example': teaching['miniature_example'],
+                'pedagogy': teaching['pedagogy'],
+            },)
+        context, prompt, _ = prepare_turn(root, exercise, excerpt, question, previous, history or ())
         lease.check()
         try:
             raw = self.transport(system_prompt=SYSTEM_PROMPT, prompt=prompt)
@@ -124,8 +135,15 @@ class TeachingPipeline:
             raise TeachingTurnError('Guru’s reply could not be validated.')
         reply = '\n\n'.join(display[key] for key in
                             ('explanation', 'miniature_example', 'diagnostic_question') if display[key])
+        # Carry only what was admitted for display and the metadata needed by turn_context.
+        teaching = {key: display[key] for key in ('explanation', 'miniature_example', 'diagnostic_question')}
+        teaching['pedagogy'] = {
+            'concept': display['pedagogy']['concept'],
+            'strategy': display['pedagogy']['strategy'],
+            'judgment': admission['judgment'],
+        }
         self._report_reply('reply_admitted')
-        return reply
+        return {'question': question, 'reply': reply, 'teaching': teaching}
 
 def teaching_response(text, context=None):
     result = json.loads(text)

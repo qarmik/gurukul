@@ -23,28 +23,38 @@ async function main(){
   version=browser.version();
   page.setDefaultTimeout(8000);
   await page.goto(launch);
-  const source='# GURU-009 disposable draft';
+  const source='# Disposable practice draft';
   await page.locator('#editor').fill(source);
   await page.waitForFunction(()=>document.querySelector('#saved').textContent==='Saved revision 1');
   const question='What changes after reassignment?';
-  await page.locator('#question').fill(question);
-  const practiceResponse=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/teach');
-  await page.getByRole('button',{name:'Ask Guru',exact:true}).click();
-  assert.equal((await practiceResponse).status(),200);
-  await page.waitForFunction(()=>document.querySelector('#guru-reply').textContent.startsWith('Sample reply:'));
+  const followup='Why didn’t the first print change?';
+  for(const q of [question,followup]){
+   await page.locator('#question').fill(q);
+   const practiceResponse=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/teach');
+   await page.getByRole('button',{name:'Ask Guru',exact:true}).click();
+   const response=await practiceResponse;
+   assert.equal(response.status(),200);
+   const result=await response.json();
+   for(const flag of ['grants_assessment_credit','grants_mastery','advances_curriculum'])assert.equal(result[flag],false);
+   await page.waitForFunction(q=>document.querySelector('#guru-history').textContent.includes(q),q);
+  }
+  const transcript='You: '+question+'\nGuru: The name now refers to the newly assigned value.\n\nYou: '+followup+'\nGuru: The first print already ran using the value available at that point.';
+  assert.equal(await page.locator('#guru-history').isVisible(),true);
+  assert.equal(await page.locator('#guru-history').textContent(),transcript);
   assert.equal(await page.locator('#editor').inputValue(),source);
   assert.equal(await page.locator('#saved').textContent(),'Saved revision 1');
-  const reply=await page.locator('#guru-reply').textContent();
   await page.reload();
   await page.waitForFunction(()=>document.querySelector('#saved').textContent==='Saved revision 1');
   assert.equal(await page.locator('#editor').inputValue(),source);
-  practice={reply,draft_preserved_after_reload:true};
+  assert.equal(await page.locator('#guru-history').textContent(),transcript);
+  practice={transcript,draft_preserved_after_reload:true};
   await page.locator('#ready').check();
   await page.getByRole('button',{name:'Start assessment',exact:true}).click();
   await page.waitForFunction(()=>document.querySelector('#lifecycle').textContent==='State: OPEN');
   assert.equal(await page.locator('#teach').isDisabled(),true);
   assert.equal(await page.locator('#question').isDisabled(),true);
   assert.equal(await page.locator('#guru-reply').textContent(),'');
+  assert.equal(await page.locator('#guru-history').textContent(),'');
   denial=await page.evaluate(async question=>{
    const r=await fetch('/api/teach',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question})});
    return {status:r.status,...await r.json()};
@@ -59,7 +69,8 @@ async function main(){
  const last=await lines.next();
  assert.ok(!last.done,'Fixture did not return ledger counts');
  const ledger=JSON.parse(last.value);
- assert.equal(ledger.responder_calls,1);
+ assert.equal(ledger.responder_calls,2);
+ assert.equal(ledger.followup_used_first_exchange,true);
  assert.equal(ledger.executions_after,ledger.executions_before);
  assert.equal(ledger.assessment_reservations,0);
  assert.equal(ledger.assessment_openings,1);

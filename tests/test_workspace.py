@@ -359,15 +359,53 @@ class HTTPTests(unittest.TestCase):
         self.assertEqual(200,status,raw)
         self.assertEqual({'kind':'validated','reply':self.explanation,
                           'grants_assessment_credit':False,'grants_mastery':False,
-                          'advances_curriculum':False},json.loads(raw))
+                          'advances_curriculum':False,
+                          'teaching_exchanges':[{'question':self.question['question'],'reply':self.explanation}]},
+                         json.loads(raw))
         self.transport_stub.assert_called_once()
         self.assertEqual(before,self.progress_snapshot())
+
+    def test_pipeline_followup_uses_only_the_last_admitted_exchange(self):
+        self.enable_teaching_pipeline()
+        before = self.progress_snapshot()
+        followup = {'question': 'Why didn’t the first print change?'}
+        explanation = 'The first print already ran using the value available at that point.'
+        self.transport_stub.side_effect = [
+            json.dumps(self.proposal),
+            json.dumps(self.proposal | {'unrecognized': 'rejected reply'}),
+            json.dumps(self.proposal | {'explanation': explanation}),
+        ]
+        self.assertEqual(200, self.request('/api/teach', 'POST', self.question)[0])
+        self.assertEqual(502, self.request('/api/teach', 'POST', {'question': 'Rejected question?'})[0])
+        status, raw = self.request('/api/teach', 'POST', followup)
+        self.assertEqual(200, status, raw)
+        transcript = [
+            {'question': self.question['question'], 'reply': self.explanation},
+            {'question': followup['question'], 'reply': explanation},
+        ]
+        self.assertEqual(transcript, json.loads(raw)['teaching_exchanges'])
+        self.assertEqual(transcript, json.loads(self.request()[1])['teaching_exchanges'])
+        prompt = self.transport_stub.call_args.kwargs['prompt']
+        turn = json.loads(prompt.split('GURUKUL CONTEXT JSON:\n')[1].split(
+            '\nGURU RESPONSE CONTRACT JSON:', 1)[0])['C_turn']
+        self.assertEqual(followup['question'], turn['learner_message'])
+        self.assertEqual(self.explanation, turn['previous_teaching']['explanation'])
+        self.assertEqual([self.question['question']],
+                         [entry['learner_message'] for entry in turn['recent_exchanges']])
+        self.assertNotIn('Rejected question?', prompt)
+        self.assertNotIn('rejected reply', prompt)
+        self.assertEqual(before, self.progress_snapshot())
+
+        # Even reusing the same pipeline in another server does not carry the transcript.
+        with Server(self.root, self.sid, teaching_pipeline=self.server.teaching_pipeline) as fresh:
+            self.assertEqual([], fresh.practice_exchanges)
 
     def test_pipeline_assessment_denies_direct_teach_before_transport(self):
         self.enable_teaching_pipeline()
         self.assertEqual(200,self.request('/api/start','POST',{'ready':True})[0])
         before=self.progress_snapshot()
         self.assertEqual('unavailable',json.loads(self.request()[1])['teaching'])
+        self.assertEqual([],json.loads(self.request()[1])['teaching_exchanges'])
         status,raw=self.request('/api/teach','POST',self.question)
         self.assertEqual(409,status,raw)
         self.assertIn('Tutoring denied',json.loads(raw)['error'])
