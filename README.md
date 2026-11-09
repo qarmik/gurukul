@@ -1,5 +1,9 @@
 # Gurukul — GURU-004 isolated live teaching verified
 
+**[View my upskilling portfolio](https://qarmik.github.io/gurukul/progress/)**
+
+**If the page is unavailable:** Curriculum v0.8.3; this tracker covers C0 (Programming Independence) and C0-B01-D01. No approved learner snapshot or contribution statements have been published. Software releases, practice, and independent demonstrations are separate. See the [repository fallback](docs/progress/summary.md), the [published text snapshot](https://github.com/qarmik/gurukul/blob/gh-pages/progress/summary.md) when available, or the [disposable preview instructions](docs/progress/README.md).
+
 Local session persistence and bounded execution for C0-B01-D01. Python 3.11+; this increment uses only the standard library.
 
 From this project's root:

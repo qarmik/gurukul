@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Upskilling portfolio · Gurukul</title>
+<style>
+:root { color-scheme: light; font: 16px/1.55 system-ui, sans-serif; color:#172431; background:#f4f7f6; }
+body { margin:0; } main { width:min(100% - 2rem, 48rem); margin:2.5rem auto; }
+h1,h2,p { margin:0 0 .65rem; } h1 { font-size:clamp(1.9rem, 7vw, 3rem); line-height:1.08; }
+h2 { font-size:1.25rem; } .eyebrow { color:#225d50; font-weight:700; letter-spacing:.12em; text-transform:uppercase; }
+section { background:#fff; border:1px solid #d4dfda; border-radius:.85rem; padding:1rem; margin:1rem 0; }
+small,.muted { color:#405663; } strong { font-weight:700; }
+ul { padding:0; list-style:none; margin:0; } li { padding:.65rem 0; border-top:1px solid #e1e8e5; overflow-wrap:anywhere; }
+article { overflow-wrap:anywhere; } article + article { border-top:1px solid #e1e8e5; margin-top:1rem; }
+.badge { display:inline-block; margin:.2rem .4rem .2rem 0; padding:.05rem .5rem; border-radius:.4rem; background:#e8edf0; font-size:.82rem; font-weight:700; }
+[data-status="reviewed_evidence"],[data-status="verified_complete"] { background:#d9eee4; }
+[data-status="due"],[data-status="awaiting_review"],[data-status="blocked"] { background:#fce9c6; }
+a { color:#175649; } [hidden] { display:none; }
+</style>
+<main>
+<header>
+<p class="eyebrow">Gurukul · Work and learning</p>
+<h1>Upskilling portfolio</h1>
+<p id="sample" class="badge" hidden>Sample preview · illustrative claims and dates</p>
+<p id="notice" role="status">Checking for an approved snapshot…</p>
+<noscript><p>JavaScript is needed for updates. Read the <a href="summary.md">text summary</a>.</p></noscript>
+</header>
+<div id="snapshot" hidden>
+<p id="updated" class="muted"></p>
+<section aria-labelledby="work-heading">
+<h2 id="work-heading">Selected work</h2>
+<div id="work"></div>
+</section>
+<section aria-labelledby="timeline-heading">
+<h2 id="timeline-heading">Timeline</h2>
+<p class="muted">Shipped work, practice, and independent demonstrations are separate.</p>
+<ul id="timeline"></ul>
+</section>
+<section aria-labelledby="current-heading">
+<h2 id="current-heading">Curriculum progress</h2>
+<p id="location"></p><p id="status"></p><p id="evidence"></p><p id="next"></p>
+</section>
+<section aria-labelledby="map-heading">
+<h2 id="map-heading">Curriculum map</h2>
+<p class="muted">Only D01 is tracked at exercise level. A reviewed item is not a curriculum pass.</p>
+<ul id="map"></ul>
+</section>
+</div>
+<footer><small>Updates appear after Gurukul records the event and the approved snapshot is published. This page does not stream activity.</small></footer>
+</main>
+<script>
+'use strict';
+const labels = {in_progress:'In progress', awaiting_review:'Awaiting review', blocked:'Blocked',
+  not_tracked:'Not yet tracked', not_published:'Not published', verified_complete:'Demonstrated independently',
+  reviewed_evidence:'Reviewed evidence', scheduled:'Scheduled', due:'Due', shipped:'Shipped', practised:'Practised'};
+const publicLink = /^https:\/\/github\.com\/qarmik\/gurukul\/(?:commit\/[0-9a-f]{40}|blob\/[0-9a-f]{40}\/docs\/[\w./-]+)$/;
+const el = id => document.getElementById(id);
+function badge(status) {
+  const tag = document.createElement('span');
+  tag.className = 'badge';
+  tag.dataset.status = status;
+  tag.textContent = Object.hasOwn(labels, status) ? labels[status] : 'Unknown status';
+  return tag;
+}
+function row(status, text) {
+  const item = document.createElement('li');
+  item.append(badge(status), document.createTextNode(text));
+  return item;
+}
+function render(data) {
+  if (!data || typeof data.curriculum_version !== 'string' ||
+      !Number.isFinite(Date.parse(data.published_at)) || !Array.isArray(data.timeline) ||
+      !Array.isArray(data.stages) || !Array.isArray(data.milestones) ||
+      !Array.isArray(data.selected_work) || data.selected_work.length > 3 ||
+      typeof data.sample !== 'boolean') throw Error('Invalid snapshot');
+  el('sample').hidden = !data.sample;
+  el('work').replaceChildren(...data.selected_work.map(work => {
+    const card = document.createElement('article');
+    const heading = document.createElement('h3');
+    heading.textContent = work.title;
+    card.append(heading);
+    for (const [key, label] of [['problem', 'Problem'], ['contribution', 'My contribution'],
+      ['help', 'Help used'], ['verified', 'Verified']]) {
+      const p = document.createElement('p');
+      const name = document.createElement('strong');
+      name.textContent = label + ': ';
+      p.append(name, document.createTextNode(work[key]));
+      card.append(p);
+    }
+    if (publicLink.test(work.evidence_url) && !work.evidence_url.split('/').includes('..')) {
+      const link = document.createElement('a');
+      link.href = work.evidence_url;
+      link.textContent = 'Inspect evidence for ' + work.title;
+      card.append(link);
+    }
+    return card;
+  }));
+  if (!data.selected_work.length) el('work').textContent = 'No selected work is approved for display yet.';
+  const map = new Map([...data.stages, ...data.milestones].map(item => [item.id, item.title]));
+  const title = id => id + ' — ' + (map.get(id) ?? 'Unknown milestone');
+  if (data.current) {
+    el('location').textContent = title(data.current.phase_id) + ' / ' + title(data.current.milestone_id);
+    el('status').replaceChildren(badge(data.current.status));
+    el('evidence').textContent = data.current.summary;
+    el('next').textContent = 'Next: ' + data.current.next_action;
+  } else {
+    el('location').textContent = 'No approved learner snapshot is available.';
+    el('status').replaceChildren();
+    el('evidence').textContent = '';
+    el('next').textContent = '';
+  }
+  el('timeline').replaceChildren(...data.timeline.map(item =>
+    row(item.status, (item.date ? item.date + ' — ' : '') + (item.milestone_id ? item.milestone_id + ': ' : '') + item.summary)));
+  if (!data.timeline.length) {
+    const item = document.createElement('li');
+    item.textContent = 'No approved timeline entries.';
+    el('timeline').append(item);
+  }
+  el('map').replaceChildren(...[...data.stages, ...data.milestones].map(item =>
+    row(item.status, title(item.id))));
+  el('updated').textContent = 'Curriculum v' + data.curriculum_version + ' · Latest snapshot: ' +
+    new Date(data.published_at).toISOString().replace('T', ' ').replace('Z', ' UTC');
+  el('snapshot').hidden = false;
+}
+let previous = null;
+async function refresh() {
+  try {
+    const response = await fetch('progress.json', {cache: 'no-store', signal: AbortSignal.timeout(5000)});
+    if (!response.ok) throw Error('Snapshot unavailable');
+    const raw = await response.text();
+    if (raw !== previous) { render(JSON.parse(raw)); previous = raw; }
+    el('notice').textContent = '';
+  } catch {
+    el('notice').textContent = previous === null
+      ? 'Progress snapshot unavailable. No progress is being shown.'
+      : 'Could not check for updates. Showing the last published snapshot.';
+  } finally {
+    setTimeout(refresh, 2000);
+  }
+}
+refresh();
+</script>
+</html>
