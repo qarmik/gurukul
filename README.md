@@ -1,131 +1,29 @@
-# Gurukul — GURU-004 isolated live teaching verified
+# Gurukul
 
-Local session persistence and bounded execution for C0-B01-D01. Python 3.11+; this increment uses only the standard library.
+**A local workspace for practising Python and collecting evidence of what I can do.** I’m Rohit Kumar. I started Gurukul while building on my banking operations experience and working toward enterprise AI systems design.
 
-From this project's root:
+## Why I started
 
-```bash
-PYTHONPATH=src python3 -m gurukul start
-PYTHONPATH=src python3 -m gurukul resume
-PYTHONPATH=src python3 -m gurukul events
-PYTHONPATH=src python3 -m unittest discover -s tests -v
-```
+A chat could explain Python, and AI could help me produce working code. Neither told me whether I could write it again from a blank file, diagnose an error myself, or still do it a few days later. I wanted a way to practise, return to the same skill after a delay, and keep enough evidence to review what I actually did.
 
-The execution runner targets macOS and Linux; this release was tested on Linux. Windows execution is explicitly refused. GURU-002 and GURU-003 Mac acceptance passed, as reported by the learner.
+## How it started and what it does
 
-Run from the project root or pass `--root /absolute/path/to/gurukul` before the command. Local state is created under `var/`. Close the terminal and run resume in a new process: the same session and pinned exercise return. Repeated start does not duplicate the session or its event.
+I started with a structured curriculum and one exercise on Python values and variables: write a small program, make a deliberate mistake, fix it, and explain what changed. The project grew from saving terminal runs into a local browser workspace where I can write and run code, keep the failed and repaired versions, and return for a later assessment.
 
-Implemented: D01 package, version-pinned exercise storage, atomic session/event creation, append-only event guards, restart/resume and explicit Hermes-not-integrated status.
+**Guru can teach; Gurukul controls when help is allowed and what counts as evidence.** For example, once an assessment opens, the server rejects Ask Guru requests, even if someone bypasses the button. A successful run can be saved for review; it does not establish that I worked independently or passed the curriculum stage. The current implementation covers the first exercise. Broader curriculum coverage is planned.
 
-The isolated Hermes live-test harness passed one real Mac teaching turn at 19eee63. The normal session CLI does not yet invoke the tutor. Hints, mastery decisions and retrieval transitions remain unimplemented. No learner capability is claimed by these software tests. The initial teaching phase is persisted; do not mistake it for a completed lesson.
+## My role and the help I used
 
-See docs/architecture-v0.1.md for the corrected design and docs/verification.txt for actual checks. The demonstration database is excluded from the deliverable; a fresh start creates your own session. Original curriculum and book files are not included.
+I set the learning goal, kept the first build to one Python exercise, and required tutoring to stop during assessment. I ran the one-request Mac trial myself: I asked a practice question, checked the browser reply, and captured the receipt at shutdown.
 
-## GURU-001 hardening
+I used ChatGPT for design feedback and Codex to help write project code and run automated tests. Gurukul itself runs locally using Python, SQLite, and a browser. The default workspace makes no model calls; a separate opt-in live trial uses NousResearch Hermes and the OpenAI API.
 
-Resume verifies SHA-256 over stored exercise JSON bytes before parsing or returning content, and refuses a mismatch. This detects accidental content corruption; it is not protection against an owner changing both content and digest.
+## What you can verify
 
-D01 version 2 references `content/sources.json`; see `docs/source-manifest.md` for the GURU-004 binding contract. Existing sessions retain their original version. Use a separate fresh project copy for the new-content smoke test; do not discard existing learner state.
+- **Software shipped — saved work and review.** The [disposable workflow report](https://github.com/qarmik/gurukul/blob/b38422a85f36dc23507ca6100560d100dd6d580a/docs/GURU-007-synthetic-workflow.json) shows a failed run and its repair being retained, with the assessment completed **for review** and no advancement awarded.
+- **Software control — help blocked during assessment.** The [test report](https://github.com/qarmik/gurukul/blob/b38422a85f36dc23507ca6100560d100dd6d580a/docs/GURU-010.md#verification) shows the server rejecting a direct request before the tutor was called. This used disposable state and a stub, not a live provider.
+- **Hands-on check — one live reply.** The [Mac trial closeout](https://github.com/qarmik/gurukul/blob/b38422a85f36dc23507ca6100560d100dd6d580a/docs/GURU-011-live-closeout.md) records one real provider response that passed validation and appeared in the browser, with no change to learner progress.
 
+**Learner practice:** I’m working on reconstructing and varying small Python programs. **Independently demonstrated skill:** I’m not claiming an independent Python pass from these records. The [upskilling portfolio](https://github.com/qarmik/gurukul/blob/eb97d080ccca529e2b0afb92fd86131f8351dea8/docs/progress/summary.md) is still in preview; its text summary is available without installing anything.
 
-## Submit and inspect (GURU-002)
-
-Keep learner files under ignored `var/workspace/`. After starting a session, run your own file:
-
-```bash
-PYTHONPATH=src python3 -m gurukul run var/workspace/values_variables.py
-PYTHONPATH=src python3 -m gurukul result ATTEMPT_UUID
-```
-
-Replace ATTEMPT_UUID with the returned `id`. Optional run flags: `--timeout 5 --output-limit 65536`. The capture command returns JSON with status, exit code and retained stdout/stderr. Command exit 0 means capture succeeded, not that the submitted program passed. Read `status`: completed, program_error, timed_out, output_limited, interrupted or runner_error. A submission with no committed completion is pending_or_interrupted, never assumed successful and never automatically rerun.
-
-Only run your own beginner code. This is not a filesystem/network/memory sandbox. Run itself has no exercise correctness checks, tutoring or progression authority; the separate check command evaluates saved D01 evidence. It may be used while the session remains in the initial teaching phase; that phase is not updated by execution.
-
-Source snapshots and raw output live under ignored `var/evidence/`; SQLite stores their hashes, metadata and append-only events. No learner evidence is automatically committed. See docs/GURU-002.md for limits, persistence behavior and acceptance proof.
-
-
-## Check a saved D01 answer (GURU-003)
-
-```bash
-PYTHONPATH=src python3 -m gurukul check REPAIRED_ATTEMPT_UUID --failed-attempt FAILED_ATTEMPT_UUID
-```
-
-Use the UUIDs returned when you saved each run. The checker evaluates requirements and output, not just process exit. Missing failure evidence is incomplete; unsupported syntax is sent to review. CHECKS_PASS is not mastery or verified independence. No learner solution is generated. See [GURU-003](docs/GURU-003.md) for supported syntax, evidence rules and the new Mac verification commands. GURU-002 Mac verification has already passed.
-
-## One real Hermes teaching turn (GURU-004)
-
-GURU-003 passed all 24 new tests on the Mac; do not repeat that verification.
-The pinned real Hermes import, isolated denial probe and one live teaching turn passed.
-The harness instantiated AIAgent and called run_conversation through a Mac sandbox
-and a parent-owned, one-request OpenAI relay. See [GURU-004 live instructions](docs/GURU-004-live.md) for
-the exact commands, approved-source picker, restrictions and acceptance conditions.
-The worker never receives the OpenAI key; Claude escalation is not enabled.
-All teaching output and proof remain under ignored var/hermes-live/. Development
-tests are separate from the user-reported live Mac acceptance. See
-[GURU-004 acceptance](docs/GURU-004-acceptance.md) for the verified scope and remaining work.
-
-## Continue the saved teaching question
-
-Run `python3 scripts/hermes_live_teach.py --continue CALL_UUID` with a successful
-teaching call ID. The terminal shows its explanation/question and asks for your
-answer; the isolated worker returns feedback and one next question. Gurukul restores
-verified local context and persists the linked exchange. No source picker is needed.
-See [continuation instructions](docs/GURU-004-continuation.md) for exact Mac commands,
-evidence requirements and limits. One correct-answer live continuation passed on the Mac at `a331b23`;
-live misconception/reteaching coverage remains unverified.
-
-## Stay in the teaching conversation
-
-The teaching command now stays open by default. After each response, answer at
-`Gurukul — your answer (/quit to finish):`. Type `/quit`, press Control-C, or send
-end-of-input to leave. The exit message provides a resume command for the last
-successful question. Invalid empty/oversized answers reprompt without a model call.
-Each submitted answer uses a fresh isolated worker and at most one paid request.
-Failures stop without automatic retries. `--once` retains one-turn diagnostic mode;
-`--verbose` displays full proof JSON. See [interactive verification](docs/GURU-004-interactive.md).
-
-## GURU-004 pedagogical correction
-
-The tutor now receives a compact canonical curriculum orientation and linked recent
-teaching evidence. It can use general Python knowledge inside D01, answer direct
-questions, change strategy after confusion and propose more demanding practice.
-Curriculum requirements and progression stay under Gurukul authority. See
-[correction and live A–E acceptance](docs/GURU-004-pedagogy.md). **GURU-005 is blocked
-until live pedagogical acceptance passes.** Earlier one-turn/continuation passes
-remain integration evidence, not acceptance of this new teaching policy.
-
-## Mixed learner messages and status wording
-
-Teaching now preserves answer plus clarification/question/uncertainty within one
-utterance. Parent-side admission separates provisional model judgment from runtime
-success and mastery. Recoverable routing ambiguity reprompts without ending the
-session or retrying automatically. See [mixed-intent acceptance](docs/GURU-004-mixed-intents.md).
-Live acceptance remains pending; GURU-005 stays blocked.
-
-## Requests for another explanation
-
-Explanation requests now select a teaching representation without grading the pending
-answer. Safe teaching-format rejection stays recoverable, and terminal controls are
-removed before semantic evidence is stored. See [explanation-request acceptance](docs/GURU-004-explanation-requests.md).
-GURU-005 remains blocked until the real live strategy checks pass.
-
-GURU-004 evidence-integrity remediation: learner input is parent-owned, hashed and
-separate from model interpretation; verified references replace retyped evidence.
-[Implementation, limitations and Mac acceptance](docs/GURU-004-input-integrity.md).
-Live completion remains pending; GURU-005 is blocked.
-
-## GURU-004M pedagogical supervisor
-
-A separate Anthropic/Claude supervisor can select a small approved teaching profile
-when a trajectory loops, recovers repeatedly or needs orientation. Healthy turns
-and a single explanation request add no supervisor generation. Gurukul applies
-the profile; mastery, curriculum, input, disclosure and isolation remain immutable.
-Retiring a repeated question leaves its evidence requirement unresolved.
-
-This is opt-in through `--maharishi` after dedicated local account/key setup. It
-retains the actual pinned Hermes/GPT-6 Luna path and adds a separate bounded
-supervisor request only when triggered. See [architecture/contract](docs/GURU-004M.md)
-and [targeted Mac acceptance](docs/GURU-004M-Mac.md). The supplied live run passed
-account/model verification and a real approved ORIENTATION intervention. A
-[parent-owned identity repair](docs/GURU-004M-contract.md) addresses the subsequent
-Guru schema failure. Full integrated acceptance remains pending; GURU-005 is blocked.
+[Developer guide: setup, design notes, and verification](docs/developer-guide.md)
